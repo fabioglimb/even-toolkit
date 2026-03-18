@@ -1,0 +1,127 @@
+{
+  "name": "even-toolkit",
+  "version": "0.5.0",
+  "description": "Shared library for building Even Realities G2 glasses apps — bridge, display, gestures, action bars, timers, and more.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./bridge": {
+      "types": "./dist/bridge.d.ts",
+      "import": "./dist/bridge.js"
+    },
+    "./useGlasses": {
+      "types": "./dist/useGlasses.d.ts",
+      "import": "./dist/useGlasses.js"
+    },
+    "./useFlashPhase": {
+      "types": "./dist/useFlashPhase.d.ts",
+      "import": "./dist/useFlashPhase.js"
+    },
+    "./action-bar": {
+      "types": "./dist/action-bar.d.ts",
+      "import": "./dist/action-bar.js"
+    },
+    "./action-map": {
+      "types": "./dist/action-map.d.ts",
+      "import": "./dist/action-map.js"
+    },
+    "./gestures": {
+      "types": "./dist/gestures.d.ts",
+      "import": "./dist/gestures.js"
+    },
+    "./keyboard": {
+      "types": "./dist/keyboard.d.ts",
+      "import": "./dist/keyboard.js"
+    },
+    "./timer-display": {
+      "types": "./dist/timer-display.d.ts",
+      "import": "./dist/timer-display.js"
+    },
+    "./text-utils": {
+      "types": "./dist/text-utils.d.ts",
+      "import": "./dist/text-utils.js"
+    },
+    "./layout": {
+      "types": "./dist/layout.d.ts",
+      "import": "./dist/layout.js"
+    },
+    "./canvas-renderer": {
+      "types": "./dist/canvas-renderer.d.ts",
+      "import": "./dist/canvas-renderer.js"
+    },
+    "./composer": {
+      "types": "./dist/composer.d.ts",
+      "import": "./dist/composer.js"
+    },
+    "./png-utils": {
+      "types": "./dist/png-utils.d.ts",
+      "import": "./dist/png-utils.js"
+    },
+    "./keep-alive": {
+      "types": "./dist/keep-alive.d.ts",
+      "import": "./dist/keep-alive.js"
+    },
+    "./splash": {
+      "types": "./dist/splash.d.ts",
+      "import": "./dist/splash.js"
+    },
+    "./text-clean": {
+      "types": "./dist/text-clean.d.ts",
+      "import": "./dist/text-clean.js"
+    },
+    "./paginate-text": {
+      "types": "./dist/paginate-text.d.ts",
+      "import": "./dist/paginate-text.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-router": ">=7.0.0",
+    "@evenrealities/even_hub_sdk": ">=0.0.7",
+    "@jappyjan/even-better-sdk": ">=0.0.10"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-router": { "optional": true }
+  },
+  "devDependencies": {
+    "@evenrealities/even_hub_sdk": "^0.0.7",
+    "@jappyjan/even-better-sdk": "^0.0.10",
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "react-router": "^7.0.0",
+    "typescript": "~5.4.0"
+  },
+  "keywords": [
+    "even-realities",
+    "g2-glasses",
+    "smart-glasses",
+    "ar",
+    "wearable",
+    "even-hub"
+  ],
+  "author": "fabioglimb",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fabioglimb/even-glass"
+  }
+}
