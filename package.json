@@ -1,6 +1,6 @@
 {
   "name": "even-toolkit",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Shared library for building Even Realities G2 glasses apps — bridge, display, gestures, action bars, timers, and more.",
   "type": "module",
   "main": "./dist/index.js",
