@@ -4,7 +4,7 @@ Design system & component library for **Even Realities G2** smart glasses apps.
 
 55+ web components, 191 pixel-art icons, glasses SDK bridge, light/dark themes, and design tokens — all following the Even Realities 2025 UIUX Design Guidelines.
 
-<!-- Live demo URL will be added here -->
+**[Live Demo → even-demo.vercel.app](https://even-demo.vercel.app)**
 
 ## Install
 
@@ -137,6 +137,7 @@ export function App() {
 
 | App | Description | Live |
 |-----|-------------|------|
+| **EvenDemo** | Component showcase & design system reference | [even-demo.vercel.app](https://even-demo.vercel.app) |
 | **EvenMarket** | Real-time stock market data on G2 glasses | [even-market.vercel.app](https://even-market.vercel.app) |
 | **EvenKitchen** | Recipe management & step-by-step cooking | [even-kitchen.vercel.app](https://even-kitchen.vercel.app) |
 | **EvenWorkout** | Workout tracking with rest timers | [even-workout.vercel.app](https://even-workout.vercel.app) |
