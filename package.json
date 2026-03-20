@@ -1,6 +1,6 @@
 {
   "name": "even-toolkit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Design system & component library for Even Realities G2 smart glasses apps — 55+ web components, 191 pixel-art icons, glasses SDK bridge, and design tokens.",
   "type": "module",
   "main": "./dist/glasses/index.js",
@@ -320,7 +320,7 @@
     "clsx": ">=2.0.0",
     "react": ">=18.0.0",
     "react-router": ">=7.0.0",
-    "tailwind-merge": ">=3.0.0"
+    "tailwind-merge": ">=2.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
