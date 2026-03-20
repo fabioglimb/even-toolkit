@@ -3,84 +3,84 @@
   "version": "0.6.0",
   "description": "Shared library for building Even Realities G2 glasses apps — bridge, display, gestures, action bars, timers, and more.",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/glasses/index.js",
+  "types": "./dist/glasses/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/glasses/index.d.ts",
+      "import": "./dist/glasses/index.js"
     },
     "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.js"
+      "types": "./dist/glasses/types.d.ts",
+      "import": "./dist/glasses/types.js"
     },
     "./bridge": {
-      "types": "./dist/bridge.d.ts",
-      "import": "./dist/bridge.js"
+      "types": "./dist/glasses/bridge.d.ts",
+      "import": "./dist/glasses/bridge.js"
     },
     "./useGlasses": {
-      "types": "./dist/useGlasses.d.ts",
-      "import": "./dist/useGlasses.js"
+      "types": "./dist/glasses/useGlasses.d.ts",
+      "import": "./dist/glasses/useGlasses.js"
     },
     "./useFlashPhase": {
-      "types": "./dist/useFlashPhase.d.ts",
-      "import": "./dist/useFlashPhase.js"
+      "types": "./dist/glasses/useFlashPhase.d.ts",
+      "import": "./dist/glasses/useFlashPhase.js"
     },
     "./action-bar": {
-      "types": "./dist/action-bar.d.ts",
-      "import": "./dist/action-bar.js"
+      "types": "./dist/glasses/action-bar.d.ts",
+      "import": "./dist/glasses/action-bar.js"
     },
     "./action-map": {
-      "types": "./dist/action-map.d.ts",
-      "import": "./dist/action-map.js"
+      "types": "./dist/glasses/action-map.d.ts",
+      "import": "./dist/glasses/action-map.js"
     },
     "./gestures": {
-      "types": "./dist/gestures.d.ts",
-      "import": "./dist/gestures.js"
+      "types": "./dist/glasses/gestures.d.ts",
+      "import": "./dist/glasses/gestures.js"
     },
     "./keyboard": {
-      "types": "./dist/keyboard.d.ts",
-      "import": "./dist/keyboard.js"
+      "types": "./dist/glasses/keyboard.d.ts",
+      "import": "./dist/glasses/keyboard.js"
     },
     "./timer-display": {
-      "types": "./dist/timer-display.d.ts",
-      "import": "./dist/timer-display.js"
+      "types": "./dist/glasses/timer-display.d.ts",
+      "import": "./dist/glasses/timer-display.js"
     },
     "./text-utils": {
-      "types": "./dist/text-utils.d.ts",
-      "import": "./dist/text-utils.js"
+      "types": "./dist/glasses/text-utils.d.ts",
+      "import": "./dist/glasses/text-utils.js"
     },
     "./layout": {
-      "types": "./dist/layout.d.ts",
-      "import": "./dist/layout.js"
+      "types": "./dist/glasses/layout.d.ts",
+      "import": "./dist/glasses/layout.js"
     },
     "./canvas-renderer": {
-      "types": "./dist/canvas-renderer.d.ts",
-      "import": "./dist/canvas-renderer.js"
+      "types": "./dist/glasses/canvas-renderer.d.ts",
+      "import": "./dist/glasses/canvas-renderer.js"
     },
     "./composer": {
-      "types": "./dist/composer.d.ts",
-      "import": "./dist/composer.js"
+      "types": "./dist/glasses/composer.d.ts",
+      "import": "./dist/glasses/composer.js"
     },
     "./png-utils": {
-      "types": "./dist/png-utils.d.ts",
-      "import": "./dist/png-utils.js"
+      "types": "./dist/glasses/png-utils.d.ts",
+      "import": "./dist/glasses/png-utils.js"
     },
     "./keep-alive": {
-      "types": "./dist/keep-alive.d.ts",
-      "import": "./dist/keep-alive.js"
+      "types": "./dist/glasses/keep-alive.d.ts",
+      "import": "./dist/glasses/keep-alive.js"
     },
     "./splash": {
-      "types": "./dist/splash.d.ts",
-      "import": "./dist/splash.js"
+      "types": "./dist/glasses/splash.d.ts",
+      "import": "./dist/glasses/splash.js"
     },
     "./text-clean": {
-      "types": "./dist/text-clean.d.ts",
-      "import": "./dist/text-clean.js"
+      "types": "./dist/glasses/text-clean.d.ts",
+      "import": "./dist/glasses/text-clean.js"
     },
     "./paginate-text": {
-      "types": "./dist/paginate-text.d.ts",
-      "import": "./dist/paginate-text.js"
+      "types": "./dist/glasses/paginate-text.d.ts",
+      "import": "./dist/glasses/paginate-text.js"
     },
     "./web": {
       "types": "./dist/web/index.d.ts",

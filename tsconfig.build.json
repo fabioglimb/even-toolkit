@@ -16,7 +16,7 @@
     "isolatedModules": true
   },
   "include": [
-    "*.ts",
+    "glasses/**/*.ts",
     "web/**/*.ts",
     "web/**/*.tsx"
   ],
