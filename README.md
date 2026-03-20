@@ -137,11 +137,10 @@ export function App() {
 
 | App | Description | Live |
 |-----|-------------|------|
-| **EvenDemo** | Component showcase & design system reference | <!-- deploy pending --> |
 | **EvenMarket** | Real-time stock market data on G2 glasses | [even-market.vercel.app](https://even-market.vercel.app) |
-| **EvenKitchen** | Recipe management & step-by-step cooking | <!-- deploy pending --> |
-| **EvenWorkout** | Workout tracking with rest timers | <!-- deploy pending --> |
-| **EvenBrowser** | Text-based web browsing on G2 glasses | <!-- deploy pending --> |
+| **EvenKitchen** | Recipe management & step-by-step cooking | [even-kitchen.vercel.app](https://even-kitchen.vercel.app) |
+| **EvenWorkout** | Workout tracking with rest timers | [even-workout.vercel.app](https://even-workout.vercel.app) |
+| **EvenBrowser** | Text-based web browsing on G2 glasses | [even-browser.vercel.app](https://even-browser.vercel.app) |
 
 ## License
 
