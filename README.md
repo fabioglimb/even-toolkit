@@ -135,11 +135,13 @@ export function App() {
 
 ## Apps Built With Even Toolkit
 
-- **EvenDemo** — Component showcase & design system reference <!-- vercel link -->
-- **EvenMarket** — Real-time stock market data on G2 glasses <!-- vercel link -->
-- **EvenKitchen** — Recipe management & step-by-step cooking <!-- vercel link -->
-- **EvenWorkout** — Workout tracking with rest timers <!-- vercel link -->
-- **EvenBrowser** — Text-based web browsing on G2 glasses <!-- vercel link -->
+| App | Description | Live |
+|-----|-------------|------|
+| **EvenDemo** | Component showcase & design system reference | <!-- deploy pending --> |
+| **EvenMarket** | Real-time stock market data on G2 glasses | [even-market.vercel.app](https://even-market.vercel.app) |
+| **EvenKitchen** | Recipe management & step-by-step cooking | <!-- deploy pending --> |
+| **EvenWorkout** | Workout tracking with rest timers | <!-- deploy pending --> |
+| **EvenBrowser** | Text-based web browsing on G2 glasses | <!-- deploy pending --> |
 
 ## License
 
