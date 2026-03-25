@@ -7,6 +7,12 @@ import { bindKeyboard } from './keyboard';
 import { activateKeepAlive, deactivateKeepAlive } from './keep-alive';
 import type { SplashHandle } from './splash';
 
+/** Debug overlay — only shows if window.__glassesDebug is true */
+function showDebugOverlay(msg: string): void {
+  if (!(window as any).__glassesDebug) return;
+  // visible via __glassesDebug flag — no console output in production
+}
+
 export interface UseGlassesConfig<S> {
   getSnapshot: () => S;
   /** Convert snapshot to single text display (for 'text' mode) */
@@ -65,7 +71,7 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
       // Build display text from lines
       const data = configRef.current.toDisplayData(snapshot, nav);
       const text = data.lines.map(l => {
-        if (l.style === 'separator') return '\u2500'.repeat(44);
+        if (l.style === 'separator') return '\u2500'.repeat(28) + '\n';
         if (l.inverted) return `\u25B6 ${l.text}`;
         return `  ${l.text}`;
       }).join('\n');
@@ -144,15 +150,20 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
     };
 
     async function initBridge() {
+      showDebugOverlay('initBridge: starting...');
       try {
         await hub.init();
+        showDebugOverlay('initBridge: bridge ready');
+        // Expose bridge globally for STT GlassBridgeSource
+        (window as any).__evenBridge = hub;
         if (disposed) return;
 
         const splash = configRef.current.splash;
 
         if (splash) {
-          // Image-based splash: show canvas-rendered image, then wait minTime
+          showDebugOverlay('initBridge: showing splash...');
           await splash.show(hub);
+          showDebugOverlay('initBridge: splash shown');
           if (disposed) return;
 
           hub.onEvent((event) => {
@@ -170,7 +181,7 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
           // uses updateHomeText instead of rebuilding (avoids blink)
           lastHadImagesRef.current = !!configRef.current.homeImageTiles?.length;
         } else {
-          // Default text splash
+          showDebugOverlay('initBridge: no splash, showing text...');
           await hub.showTextPage(`\n\n      ${configRef.current.appName}`);
           if (disposed) return;
 
@@ -179,8 +190,9 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
             if (action) handleAction(action);
           });
         }
-      } catch {
+      } catch (err) {
         // SDK not available — app continues without glasses
+        showDebugOverlay('Bridge init failed: ' + (err instanceof Error ? err.message : String(err)));
       }
 
       // Start polling for state changes
@@ -207,8 +219,9 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
       unbindKeyboard();
       hub.dispose();
       hubRef.current = null;
+      (window as any).__evenBridge = null;
       deactivateKeepAlive();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

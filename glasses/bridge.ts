@@ -24,7 +24,8 @@ export interface ColumnConfig {
 
 export class EvenHubBridge {
   private sdk: EvenBetterSdk;
-  private rawBridge: EvenAppBridge | null = null;
+  /** Raw EvenHub SDK bridge — exposed for STT audio control */
+  rawBridge: EvenAppBridge | null = null;
   private _currentMode: PageMode | null = null;
   private _pageReady = false;
 
@@ -95,8 +96,12 @@ export class EvenHubBridge {
   }
 
   async init(): Promise<void> {
-    this.rawBridge = await EvenBetterSdk.getRawBridge() as unknown as EvenAppBridge;
-    this._pageReady = true;
+    try {
+      this.rawBridge = await EvenBetterSdk.getRawBridge() as unknown as EvenAppBridge;
+      this._pageReady = true;
+    } catch (err) {
+      throw err;
+    }
   }
 
   // ── Setup (required before chart/home layout switch) ──
@@ -292,6 +297,22 @@ export class EvenHubBridge {
     await this.rawBridge.updateImageRawData(
       new ImageRawDataUpdate({ containerID, containerName, imageData: pngBytes }),
     );
+  }
+
+  // ── IMU ──
+
+  async imuEnable(): Promise<void> {
+    if (!this.rawBridge) return;
+    try {
+      await (this.rawBridge as any).callEvenApp('imuControl', { isOpen: true });
+    } catch { /* IMU might not be supported */ }
+  }
+
+  async imuDisable(): Promise<void> {
+    if (!this.rawBridge) return;
+    try {
+      await (this.rawBridge as any).callEvenApp('imuControl', { isOpen: false });
+    } catch { /* IMU might not be supported */ }
   }
 
   // ── Events ──

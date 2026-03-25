@@ -8,3 +8,4 @@ export * from './audio/pcm-utils';
 export * from './audio/resample';
 export * from './audio/vad';
 export { createAudioBuffer } from './audio/buffer';
+export { sttLog } from './debug';

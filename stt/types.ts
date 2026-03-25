@@ -1,6 +1,6 @@
 // ── STT Provider Types ──
 
-export type STTProviderType = 'web-speech' | 'whisper-local' | 'whisper-api' | 'deepgram' | string;
+export type STTProviderType = 'whisper-api' | 'deepgram' | string;
 export type STTMode = 'streaming' | 'batch';
 export type STTState = 'idle' | 'loading' | 'listening' | 'processing' | 'error';
 
@@ -70,6 +70,7 @@ export interface STTEngineConfig {
   continuous?: boolean;
   vad?: boolean | { silenceMs?: number; thresholdDb?: number };
   sampleRate?: number;
+  chunkIntervalMs?: number;
   fallback?: STTProviderType;
 }
 
@@ -83,7 +84,8 @@ export interface UseSTTConfig {
   apiKey?: string;
   modelId?: string;
   continuous?: boolean;
-  vad?: boolean;
+  vad?: boolean | { silenceMs?: number; thresholdDb?: number };
+  chunkIntervalMs?: number;
   autoStart?: boolean;
   fallback?: STTProviderType;
   onTranscript?: (text: string, isFinal: boolean) => void;
@@ -94,7 +96,6 @@ export interface UseSTTReturn {
   interimTranscript: string;
   isListening: boolean;
   isLoading: boolean;
-  loadProgress: number;
   error: STTError | null;
   state: STTState;
   start: () => Promise<void>;

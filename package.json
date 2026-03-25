@@ -1,6 +1,6 @@
 {
   "name": "even-toolkit",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "description": "Design system & component library for Even Realities G2 smart glasses apps — 55+ web components, 191 pixel-art icons, glasses SDK bridge, and design tokens.",
   "type": "module",
   "main": "./dist/glasses/index.js",
@@ -318,14 +318,6 @@
       "types": "./dist/stt/audio/pcm-utils.d.ts",
       "import": "./dist/stt/audio/pcm-utils.js"
     },
-    "./stt/providers/web-speech": {
-      "types": "./dist/stt/providers/web-speech.d.ts",
-      "import": "./dist/stt/providers/web-speech.js"
-    },
-    "./stt/providers/whisper-local": {
-      "types": "./dist/stt/providers/whisper-local/provider.d.ts",
-      "import": "./dist/stt/providers/whisper-local/provider.js"
-    },
     "./stt/providers/whisper-api": {
       "types": "./dist/stt/providers/whisper-api.d.ts",
       "import": "./dist/stt/providers/whisper-api.js"
@@ -338,6 +330,8 @@
   "files": [
     "dist",
     "web",
+    "glasses",
+    "stt",
     "README.md",
     "LICENSE"
   ],
@@ -346,14 +340,13 @@
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "@evenrealities/even_hub_sdk": ">=0.0.7",
-    "@jappyjan/even-better-sdk": ">=0.0.10",
+    "@evenrealities/even_hub_sdk": ">=0.0.9",
+    "@jappyjan/even-better-sdk": ">=0.0.11",
     "class-variance-authority": ">=0.7.0",
     "clsx": ">=2.0.0",
     "react": ">=18.0.0",
     "react-router": ">=7.0.0",
-    "tailwind-merge": ">=2.0.0",
-    "@huggingface/transformers": ">=3.0.0"
+    "tailwind-merge": ">=2.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -370,15 +363,11 @@
     },
     "class-variance-authority": {
       "optional": true
-    },
-    "@huggingface/transformers": {
-      "optional": true
     }
   },
   "devDependencies": {
-    "@evenrealities/even_hub_sdk": "^0.0.7",
-    "@huggingface/transformers": "^3.8.1",
-    "@jappyjan/even-better-sdk": "^0.0.10",
+    "@evenrealities/even_hub_sdk": "^0.0.9",
+"@jappyjan/even-better-sdk": "^0.0.11",
     "@types/react": "^19.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -406,6 +395,7 @@
     "url": "https://github.com/fabioglimb/even-toolkit/issues"
   },
   "dependencies": {
+    "react-is": "^19.2.4",
     "recharts": "^3.8.0"
   }
 }

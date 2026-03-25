@@ -1,17 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { UseSTTConfig, UseSTTReturn, STTState, STTError } from '../types';
 import { STTEngine } from '../engine';
+import { sttLog } from '../debug';
 
 export function useSTT(config: UseSTTConfig = {}): UseSTTReturn {
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadProgress] = useState(0);
   const [error, setError] = useState<STTError | null>(null);
   const [state, setState] = useState<STTState>('idle');
 
   const engineRef = useRef<STTEngine | null>(null);
+  const busyRef = useRef(false); // prevent start/stop race
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -24,31 +25,50 @@ export function useSTT(config: UseSTTConfig = {}): UseSTTReturn {
   }, []);
 
   const start = useCallback(async () => {
-    // Dispose previous engine
+    if (busyRef.current) {
+      sttLog('useSTT: start() blocked — busy');
+      return;
+    }
+    busyRef.current = true;
+
     engineRef.current?.dispose();
 
     const cfg = configRef.current;
+
+    sttLog('useSTT: start()', cfg.provider, 'apiKey?', !!cfg.apiKey);
     const engine = new STTEngine({
-      provider: cfg.provider ?? 'web-speech',
+      provider: cfg.provider ?? 'whisper-api',
       source: cfg.source,
       language: cfg.language,
       mode: cfg.mode,
       apiKey: cfg.apiKey,
       modelId: cfg.modelId,
       continuous: cfg.continuous,
-      vad: cfg.vad,
+      vad: cfg.vad ?? true,
+      chunkIntervalMs: cfg.chunkIntervalMs,
       fallback: cfg.fallback,
     });
 
     engineRef.current = engine;
 
-    // Subscribe to events
+    // Accumulate final results for streaming providers
+    let accumulated = '';
+
     engine.onTranscript((t) => {
       if (t.isFinal) {
-        setTranscript((prev) => (prev ? prev + ' ' + t.text : t.text));
+        // Append final to accumulated text
+        const clean = t.text.replace(/\.+$/, '').trim();
+        if (clean) {
+          accumulated = accumulated ? accumulated + ' ' + clean : clean;
+        }
+        setTranscript(accumulated);
         setInterimTranscript('');
       } else {
-        setInterimTranscript(t.text);
+        // Interim: show accumulated + current interim
+        const clean = t.text.replace(/\.+$/, '').trim();
+        const full = accumulated ? accumulated + ' ' + clean : clean;
+        setInterimTranscript(full);
+        setTranscript(full);
       }
       cfg.onTranscript?.(t.text, t.isFinal);
     });
@@ -57,29 +77,44 @@ export function useSTT(config: UseSTTConfig = {}): UseSTTReturn {
       setState(s);
       setIsListening(s === 'listening');
       setIsLoading(s === 'loading');
-      if (s === 'idle') {
+      if (s === 'idle' || s === 'error') {
         setInterimTranscript('');
+        busyRef.current = false;
       }
     });
 
     engine.onError((e) => {
       setError(e);
+      busyRef.current = false;
     });
 
     setError(null);
-    await engine.start();
+    try {
+      await engine.start();
+      busyRef.current = false;
+    } catch {
+      busyRef.current = false;
+    }
   }, []);
 
   const stop = useCallback(() => {
-    engineRef.current?.stop();
+    sttLog('useSTT: stop()');
+    if (!engineRef.current) return;
+    // Stop mic immediately, then engine handles final transcription
+    engineRef.current.stop();
   }, []);
 
   const abort = useCallback(() => {
+    sttLog('useSTT: abort()');
     engineRef.current?.abort();
+    busyRef.current = false;
   }, []);
 
   const reset = useCallback(() => {
+    sttLog('useSTT: reset()');
     engineRef.current?.abort();
+    engineRef.current = null;
+    busyRef.current = false;
     setTranscript('');
     setInterimTranscript('');
     setError(null);
@@ -102,7 +137,6 @@ export function useSTT(config: UseSTTConfig = {}): UseSTTReturn {
     interimTranscript,
     isListening,
     isLoading,
-    loadProgress,
     error,
     state,
     start,

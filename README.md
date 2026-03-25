@@ -64,6 +64,80 @@ import { buildActionBar } from 'even-toolkit/action-bar';
 
 **Utilities:** splash screens, PNG encoding, text cleaning, pagination, keep-alive
 
+### Glasses Display Helpers
+
+```tsx
+import { glassHeader, line, separator } from 'even-toolkit/types';
+
+// Header with separator
+lines.push(...glassHeader('MY APP'));
+
+// Header with action bar
+lines.push(...glassHeader('STEP 1/4', buildActionBar([...], 0, null, true)));
+```
+
+## Speech-to-Text (STT)
+
+Provider-agnostic speech-to-text module for voice input in G2 glasses apps.
+
+### Providers
+
+| Provider | Type | Streaming | Requires |
+|----------|------|-----------|----------|
+| `whisper-api` | Cloud (OpenAI) | No (batch) | API key |
+| `deepgram` | Cloud (Deepgram) | Yes (real-time) | API key |
+
+### Quick Start
+
+```tsx
+import { useSTT } from 'even-toolkit/stt/react';
+
+function VoiceInput() {
+  const { transcript, isListening, start, stop } = useSTT({
+    provider: 'whisper-api',
+    language: 'en-US',
+    apiKey: 'sk-...',
+  });
+
+  return (
+    <div>
+      <button onClick={isListening ? stop : start}>
+        {isListening ? 'Stop' : 'Record'}
+      </button>
+      <p>{transcript}</p>
+    </div>
+  );
+}
+```
+
+### Configuration
+
+```tsx
+useSTT({
+  provider: 'whisper-api' | 'deepgram',
+  language: 'en-US',        // BCP-47 language tag
+  apiKey: 'your-key',       // Required for both providers
+  vad: { silenceMs: 2500 }, // Auto-stop after silence (batch mode)
+  chunkIntervalMs: 4000,    // Progressive transcription interval
+  continuous: false,         // Don't auto-stop on silence
+})
+```
+
+### Audio Sources
+
+Automatically detects the best audio source:
+- **Glasses mic** — via G2 bridge (`audioControl`)
+- **Browser mic** — via `getUserMedia` (desktop)
+- Custom `AudioSource` — pass your own
+
+## SDK 0.0.9 Support
+
+- Container limit increased to 12 (8 text + 4 image)
+- Max image size: 288x144
+- IMU control: `bridge.imuEnable()` / `bridge.imuDisable()`
+- Launch source detection: `LaunchSource` type
+- Fixed `borderRadius` spelling
+
 ## Design Tokens
 
 Light theme following Even Realities 2025 guidelines:

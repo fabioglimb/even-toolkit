@@ -8,17 +8,19 @@ import type {
 } from './types';
 import { createProvider } from './registry';
 import { MicrophoneSource } from './sources/microphone';
+import { GlassBridgeSource } from './sources/glass-bridge';
 import { resample } from './audio/resample';
 import { createVAD } from './audio/vad';
 import { createAudioBuffer } from './audio/buffer';
+import { sttLog } from './debug';
 
 /**
- * STTEngine orchestrates source -> processing -> provider.
+ * STTEngine — orchestrates audio source -> processing -> provider.
  *
- * For `web-speech` provider: skips audio source (it handles its own mic).
- * For other providers: starts audio source, pipes through optional resample
- * and VAD, buffers audio, and calls provider.transcribe() on speech end.
+ * Batch providers (whisper-api): record audio, then transcribe on stop.
+ * Streaming providers (deepgram): pipe audio in real-time via sendAudio.
  */
+
 export class STTEngine {
   private config: STTEngineConfig;
   private provider: STTProvider | null = null;
@@ -32,15 +34,16 @@ export class STTEngine {
   private providerUnsubs: Array<() => void> = [];
 
   private vad: ReturnType<typeof createVAD> | null = null;
-  private buffer: ReturnType<typeof createAudioBuffer> | null = null;
+  private chunkBuffer: ReturnType<typeof createAudioBuffer> | null = null;
   private targetSampleRate: number;
+  private stopped = false;
 
   constructor(config: STTEngineConfig) {
     this.config = config;
     this.targetSampleRate = config.sampleRate ?? 16000;
   }
 
-  // ── Event subscriptions ──
+  // -- Event subscriptions --
 
   onTranscript(cb: (t: STTTranscript) => void): () => void {
     this.transcriptListeners.push(cb);
@@ -67,25 +70,37 @@ export class STTEngine {
   }
 
   private emitTranscript(t: STTTranscript): void {
+    sttLog('transcript:', t.isFinal ? 'FINAL' : 'interim', `"${t.text}"`);
     for (const cb of this.transcriptListeners) cb(t);
   }
 
   private emitState(s: STTState): void {
+    sttLog('state ->', s);
     for (const cb of this.stateListeners) cb(s);
   }
 
   private emitError(e: STTError): void {
+    sttLog('ERROR:', e.code, e.message);
     for (const cb of this.errorListeners) cb(e);
   }
 
-  // ── Lifecycle ──
+  // -- Lifecycle --
 
   async start(): Promise<void> {
+    sttLog('engine.start()', 'provider:', this.config.provider, 'source:', this.config.source ?? 'auto');
+    this.stopped = false;
+
+    // Reuse existing provider if already initialized
+    if (this.provider) {
+      sttLog('engine: reusing provider');
+      return this.startAudioPipeline();
+    }
+
     this.emitState('loading');
 
     try {
-      // Create and init provider
       this.provider = await createProvider(this.config.provider);
+      sttLog('provider created:', this.provider.type, 'modes:', this.provider.supportedModes);
       this.subscribeProvider(this.provider);
 
       await this.provider.init({
@@ -98,36 +113,10 @@ export class STTEngine {
         vadSilenceMs: typeof this.config.vad === 'object' ? this.config.vad.silenceMs : undefined,
         sampleRate: this.targetSampleRate,
       });
-
-      // web-speech handles its own microphone
-      if (this.config.provider === 'web-speech') {
-        this.provider.start();
-        return;
-      }
-
-      // Set up audio source
-      this.source = this.resolveSource();
-      await this.source.start();
-
-      // Set up VAD if enabled
-      if (this.config.vad) {
-        const vadConfig = typeof this.config.vad === 'object' ? {
-          silenceThresholdMs: this.config.vad.silenceMs,
-          speechThresholdDb: this.config.vad.thresholdDb,
-        } : undefined;
-        this.vad = createVAD(vadConfig);
-      }
-
-      // Set up audio buffer for batch mode
-      this.buffer = createAudioBuffer({ sampleRate: this.targetSampleRate });
-
-      // Wire audio pipeline
-      this.sourceUnsub = this.source.onAudioData((pcm, sampleRate) => {
-        this.processAudio(pcm, sampleRate);
-      });
-
-      this.provider.start();
+      sttLog('provider.init() done');
+      await this.startAudioPipeline();
     } catch (err) {
+      sttLog('engine.start() FAILED:', err);
       const error: STTError = {
         code: 'unknown',
         message: err instanceof Error ? err.message : String(err),
@@ -136,29 +125,78 @@ export class STTEngine {
       this.emitError(error);
       this.emitState('error');
 
-      // Attempt fallback
       if (this.config.fallback) {
         await this.switchToFallback();
       }
     }
   }
 
+  /** Set up audio source + wire to provider. Reusable for restart. */
+  private async startAudioPipeline(): Promise<void> {
+    if (!this.provider) throw new Error('No provider');
+
+    // Streaming providers -- pipe audio via sendAudio
+    if ('sendAudio' in this.provider) {
+      this.source = this.resolveSource();
+      sttLog('streaming + sendAudio: source =', this.source.constructor.name);
+      await this.source.start();
+      const provider = this.provider;
+      this.sourceUnsub = this.source.onAudioData((pcm, sampleRate) => {
+        const samples = sampleRate !== this.targetSampleRate
+          ? resample(pcm, sampleRate, this.targetSampleRate)
+          : pcm;
+        (provider as any).sendAudio(samples);
+      });
+      this.emitState('listening');
+      this.provider.start();
+      sttLog('streaming provider started');
+      return;
+    }
+
+    // Batch providers: set up audio pipeline
+    this.source = this.resolveSource();
+    sttLog('audio source resolved:', this.source.constructor.name);
+    await this.source.start();
+
+    const vadConfig = typeof this.config.vad === 'object' ? {
+      silenceThresholdMs: this.config.vad.silenceMs ?? 2500,
+      speechThresholdDb: this.config.vad.thresholdDb,
+    } : { silenceThresholdMs: 2500 };
+    this.vad = createVAD(vadConfig);
+    this.chunkBuffer = createAudioBuffer({ sampleRate: this.targetSampleRate, maxSeconds: 120 });
+
+    this.sourceUnsub = this.source.onAudioData((pcm, sampleRate) => {
+      this.processAudio(pcm, sampleRate);
+    });
+
+    this.emitState('listening');
+    this.provider.start();
+    sttLog('engine listening');
+  }
+
   stop(): void {
-    this.provider?.stop();
+    if (this.stopped) return;
+    this.stopped = true;
+    sttLog('engine.stop()');
+
     this.sourceUnsub?.();
     this.sourceUnsub = null;
     this.source?.stop();
+    this.provider?.stop();
     this.vad?.reset();
-    this.buffer?.clear();
+
+    this.transcribeFullBuffer();
   }
 
   abort(): void {
+    this.stopped = true;
+    sttLog('engine.abort()');
     this.provider?.abort();
     this.sourceUnsub?.();
     this.sourceUnsub = null;
     this.source?.stop();
     this.vad?.reset();
-    this.buffer?.clear();
+    this.chunkBuffer?.clear();
   }
 
   dispose(): void {
@@ -174,75 +212,113 @@ export class STTEngine {
     this.errorListeners.length = 0;
   }
 
-  // ── Internal ──
+  // -- Internal --
 
   private resolveSource(): AudioSource {
     const src = this.config.source;
+
+    // Explicit AudioSource object passed
+    if (src && typeof src === 'object') {
+      sttLog('resolveSource: using custom AudioSource object');
+      return src;
+    }
+
+    // Explicit glass-bridge
+    if (src === 'glass-bridge') {
+      sttLog('resolveSource: explicit glass-bridge');
+      return new GlassBridgeSource();
+    }
+
+    // Auto-detect: if glasses bridge is available, prefer it
+    if ((window as any).__evenBridge) {
+      sttLog('resolveSource: auto-detected __evenBridge -> using GlassBridgeSource');
+      return new GlassBridgeSource();
+    }
+
+    // Explicit microphone or fallback
     if (!src || src === 'microphone') {
+      sttLog('resolveSource: using MicrophoneSource (browser mic)');
       return new MicrophoneSource();
     }
-    if (src === 'glass-bridge') {
-      throw new Error(
-        'glass-bridge source requires a GlassBridgeSource instance. ' +
-        'Pass an AudioSource object directly via config.source.'
-      );
-    }
-    // Custom AudioSource instance
+
     return src;
   }
 
   private processAudio(pcm: Float32Array, sampleRate: number): void {
-    // Resample if needed
-    let samples = sampleRate !== this.targetSampleRate
+    if (this.stopped) return;
+
+    const samples = sampleRate !== this.targetSampleRate
       ? resample(pcm, sampleRate, this.targetSampleRate)
       : pcm;
 
-    if (!this.buffer) return;
+    this.chunkBuffer?.append(samples);
 
-    // If VAD is enabled, check for speech boundaries
+    // VAD: detect speech end for auto-stop
     if (this.vad) {
       const result = this.vad.process(samples);
-
-      if (result.isSpeech || result.speechEnded) {
-        this.buffer.append(samples);
+      if (result.speechEnded && !this.config.continuous) {
+        sttLog('VAD: speech ended -> auto-stop');
+        this.stop();
       }
-
-      if (result.speechEnded) {
-        this.flushBuffer();
-      }
-    } else {
-      // No VAD: accumulate everything, provider handles streaming
-      this.buffer.append(samples);
     }
   }
 
-  private async flushBuffer(): Promise<void> {
-    if (!this.buffer || !this.provider) return;
+  /** On stop: transcribe the full recording buffer */
+  private async transcribeFullBuffer(): Promise<void> {
+    if (!this.provider?.transcribe || !this.chunkBuffer) {
+      this.emitState('idle');
+      return;
+    }
 
-    const audio = this.buffer.getAll();
-    this.buffer.clear();
+    const audio = this.chunkBuffer.getAll();
+    this.chunkBuffer.clear();
+    this.chunkBuffer = null;
 
-    if (audio.length === 0) return;
+    if (audio.length < this.targetSampleRate * 0.3) {
+      sttLog('audio too short, skipping');
+      this.emitState('idle');
+      return;
+    }
 
-    // If provider supports batch transcription
-    if (this.provider.transcribe) {
-      try {
-        const transcript = await this.provider.transcribe(audio, this.targetSampleRate);
-        this.emitTranscript(transcript);
-      } catch (err) {
-        this.emitError({
-          code: 'unknown',
-          message: err instanceof Error ? err.message : String(err),
-          provider: this.config.provider,
+    this.emitState('processing');
+    sttLog('transcribing full buffer:', (audio.length / this.targetSampleRate).toFixed(1), 's,', (audio.byteLength / 1024).toFixed(0), 'KB');
+
+    try {
+      const result = await this.provider.transcribe(audio, this.targetSampleRate);
+      const text = result.text.trim();
+      sttLog('final result:', `"${text}"`);
+
+      if (text) {
+        this.emitTranscript({
+          text,
+          isFinal: true,
+          confidence: result.confidence,
+          timestamp: Date.now(),
         });
       }
+    } catch (err) {
+      this.emitError({
+        code: 'unknown',
+        message: err instanceof Error ? err.message : String(err),
+        provider: this.config.provider,
+      });
     }
+
+    this.emitState('idle');
   }
 
   private subscribeProvider(provider: STTProvider): void {
+    const isStreaming = provider.supportedModes.includes('streaming');
+
     this.providerUnsubs.push(
-      provider.onTranscript((t) => this.emitTranscript(t)),
-      provider.onStateChange((s) => this.emitState(s)),
+      // Forward transcripts from streaming providers (deepgram emits them directly)
+      // Batch providers (whisper-api) are handled by transcribeFullBuffer — don't double-emit
+      provider.onTranscript((t) => {
+        if (isStreaming) this.emitTranscript(t);
+      }),
+      provider.onStateChange((s) => {
+        if (isStreaming) this.emitState(s);
+      }),
       provider.onError((e) => {
         this.emitError(e);
         if (this.config.fallback) {
@@ -254,21 +330,20 @@ export class STTEngine {
 
   private async switchToFallback(): Promise<void> {
     if (!this.config.fallback) return;
+    sttLog('switching to fallback provider:', this.config.fallback);
 
-    // Clean up current provider
     for (const unsub of this.providerUnsubs) unsub();
     this.providerUnsubs.length = 0;
     this.provider?.dispose();
     this.provider = null;
 
-    // Switch to fallback
     const fallbackType = this.config.fallback;
     this.config = { ...this.config, provider: fallbackType, fallback: undefined };
 
     try {
       await this.start();
     } catch {
-      // Fallback also failed — nothing more to do
+      // Fallback also failed
     }
   }
 }

@@ -7,8 +7,67 @@ import type {
   STTError,
 } from '../types';
 import { float32ToWav } from '../audio/pcm-utils';
+import { sttLog } from '../debug';
 
-const WHISPER_API_URL = 'https://api.openai.com/v1/audio/transcriptions';
+// Use proxy path to avoid WebView fetch restrictions (CORS/upload limits)
+// The proxy is configured in vite.config.ts: /__whisper → api.openai.com
+const WHISPER_API_URL = '/__whisper/v1/audio/transcriptions';
+
+// Whisper hallucinates these on silence/low audio — filter them out
+const HALLUCINATION_PATTERNS = [
+  /sottotitoli/i,
+  /amara\.org/i,
+  /qtss/i,
+  /continua\./i,
+  /al prossimo episodio/i,
+  /prossimo episodio/i,
+  /alla prossima/i,
+  /a presto/i,
+  /thank you for watching/i,
+  /thanks for watching/i,
+  /please subscribe/i,
+  /see you next time/i,
+  /see you in the next/i,
+  /next episode/i,
+  /sous-titres/i,
+  /untertitel/i,
+  /subtítulos/i,
+  /bis zum nächsten/i,
+  /字幕/,
+  /you$/i,
+  /^\s*$/,
+];
+
+/** Common phrases Whisper appends at the end of audio — strip them */
+const TRAILING_HALLUCINATIONS = [
+  /\s*al prossimo episodio\.?\s*$/i,
+  /\s*alla prossima\.?\s*$/i,
+  /\s*a presto\.?\s*$/i,
+  /\s*grazie per la visione\.?\s*$/i,
+  /\s*thank you for watching\.?\s*$/i,
+  /\s*thanks for watching\.?\s*$/i,
+  /\s*see you next time\.?\s*$/i,
+  /\s*see you in the next episode\.?\s*$/i,
+  /\s*please subscribe\.?\s*$/i,
+  /\s*bis zum nächsten mal\.?\s*$/i,
+];
+
+/** Check if text is just dots, punctuation, or too short to be real speech */
+function isJunkTranscription(text: string): boolean {
+  const cleaned = text.replace(/[\s.,!?;:…\-–—]+/g, '');
+  if (cleaned.length === 0) return true;
+  if (cleaned.length < 2) return true;
+  return HALLUCINATION_PATTERNS.some(p => p.test(text));
+}
+
+/** Strip trailing hallucination phrases from otherwise valid text */
+function cleanTranscription(text: string): string {
+  let result = text;
+  for (const pattern of TRAILING_HALLUCINATIONS) {
+    result = result.replace(pattern, '');
+  }
+  return result.trim();
+}
 
 export class WhisperApiProvider implements STTProvider {
   readonly type = 'whisper-api' as const;
@@ -29,11 +88,11 @@ export class WhisperApiProvider implements STTProvider {
 
   async init(config: STTProviderConfig): Promise<void> {
     this.apiKey = config.apiKey ?? '';
-    this.language = config.language ?? 'en';
+    this.language = (config.language ?? 'en').split('-')[0];
     this.modelId = config.modelId ?? 'whisper-1';
 
     if (!this.apiKey) {
-      const err: STTError = { code: 'not-allowed', message: 'API key is required', provider: this.type };
+      const err: STTError = { code: 'not-allowed', message: 'OpenAI API key required — set it in Settings', provider: this.type };
       this.emitError(err);
       throw new Error(err.message);
     }
@@ -63,6 +122,7 @@ export class WhisperApiProvider implements STTProvider {
 
     try {
       const wavBlob = float32ToWav(audio, sampleRate);
+      sttLog('whisper-api: sending', (audio.length / sampleRate).toFixed(1), 's audio,', (wavBlob.size / 1024).toFixed(0), 'KB WAV');
 
       const formData = new FormData();
       formData.append('file', wavBlob, 'audio.wav');
@@ -88,8 +148,22 @@ export class WhisperApiProvider implements STTProvider {
 
       const json = (await response.json()) as { text: string };
 
+      // Filter and clean Whisper hallucinations
+      const rawText = json.text?.trim() ?? '';
+      const text = cleanTranscription(rawText);
+      if (isJunkTranscription(text)) {
+        const transcript: STTTranscript = {
+          text: '',
+          isFinal: true,
+          confidence: 0,
+          timestamp: Date.now(),
+        };
+        this.setState('idle');
+        return transcript;
+      }
+
       const transcript: STTTranscript = {
-        text: json.text,
+        text,
         isFinal: true,
         confidence: 1,
         timestamp: Date.now(),

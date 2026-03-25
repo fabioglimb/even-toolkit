@@ -2,8 +2,14 @@
 
 export const DISPLAY_W = 576;
 export const DISPLAY_H = 288;
+
+// Default tile size (used by all existing apps)
 export const G2_IMAGE_MAX_W = 200;
 export const G2_IMAGE_MAX_H = 100;
+
+// SDK 0.0.9 max image bounds (for apps that want larger tiles)
+export const G2_IMAGE_LIMIT_W = 288;
+export const G2_IMAGE_LIMIT_H = 144;
 
 // ── Image tile slots (for chart layout: 3 tiles across the top) ──
 

@@ -20,6 +20,22 @@ export function separator(): DisplayLine {
   return { text: '', inverted: false, style: 'separator' };
 }
 
+/**
+ * Build a glasses header block: title + optional action bar + separator line.
+ * Returns 2 DisplayLines: [header, separator]
+ *
+ * Usage:
+ *   lines.push(...glassHeader('INBOX (3)'));
+ *   lines.push(...glassHeader('Step 1/4', '▶Timer◀  Scroll'));
+ */
+export function glassHeader(title: string, actionBar?: string): DisplayLine[] {
+  const text = actionBar ? `${title}  ${actionBar}` : title;
+  return [
+    { text, inverted: false, style: 'normal' as LineStyle },
+    { text: '', inverted: false, style: 'separator' as LineStyle },
+  ];
+}
+
 // ── Column layout types (for multi-text-container pages) ──
 
 export interface ColumnData {
@@ -43,6 +59,18 @@ export type PageMode =
   | 'columns'   // multiple side-by-side text containers (watchlist, tables)
   | 'home'      // image tile + text + empty overlay (home screens)
   | 'chart';    // 3 image tiles + text (chart detail)
+
+// ── Launch source ──
+
+export type LaunchSource = 'appMenu' | 'glassesMenu';
+
+// ── IMU data ──
+
+export interface IMUData {
+  accelerometer: { x: number; y: number; z: number };
+  gyroscope: { x: number; y: number; z: number };
+  timestamp: number;
+}
 
 // ── Glass action types ──
 

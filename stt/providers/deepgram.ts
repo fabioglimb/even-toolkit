@@ -6,6 +6,7 @@ import type {
   STTTranscript,
   STTError,
 } from '../types';
+import { sttLog } from '../debug';
 
 interface DeepgramResult {
   channel?: {
@@ -38,7 +39,7 @@ export class DeepgramProvider implements STTProvider {
 
   async init(config: STTProviderConfig): Promise<void> {
     this.apiKey = config.apiKey ?? '';
-    this.language = config.language ?? 'en';
+    this.language = (config.language ?? 'en').split('-')[0]; // Deepgram wants 'en' not 'en-US'
     this.modelId = config.modelId ?? 'nova-2';
 
     if (!this.apiKey) {
@@ -67,7 +68,10 @@ export class DeepgramProvider implements STTProvider {
     this.ws = new WebSocket(url, ['token', this.apiKey]);
     this.ws.binaryType = 'arraybuffer';
 
+    sttLog('deepgram: connecting to', url.substring(0, 60) + '...');
+
     this.ws.onopen = () => {
+      sttLog('deepgram: connected');
       this.setState('listening');
     };
 
@@ -75,12 +79,16 @@ export class DeepgramProvider implements STTProvider {
       try {
         const data = JSON.parse(event.data as string) as DeepgramResult;
         const alt = data.channel?.alternatives?.[0];
-        if (!alt?.transcript) return;
+        const text = alt?.transcript ?? '';
+
+        if (!text) return;
+
+        sttLog('deepgram: got', data.is_final ? 'FINAL' : 'interim', `"${text}"`);
 
         const transcript: STTTranscript = {
-          text: alt.transcript,
+          text,
           isFinal: data.is_final ?? false,
-          confidence: alt.confidence ?? 0,
+          confidence: alt?.confidence ?? 0,
           timestamp: Date.now(),
         };
         this.emitTranscript(transcript);
@@ -89,7 +97,8 @@ export class DeepgramProvider implements STTProvider {
       }
     };
 
-    this.ws.onerror = () => {
+    this.ws.onerror = (event) => {
+      sttLog('deepgram: WebSocket error', event);
       const err: STTError = {
         code: 'network',
         message: 'Deepgram WebSocket error',
@@ -107,14 +116,22 @@ export class DeepgramProvider implements STTProvider {
     };
   }
 
-  /** Send raw audio data (PCM Int16 or Float32 as ArrayBuffer) to the Deepgram stream. */
+  /** Send audio data to the Deepgram stream. Converts Float32 to Int16 (linear16). */
   sendAudio(data: ArrayBuffer | Int16Array | Float32Array): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    if (data instanceof ArrayBuffer) {
-      this.ws.send(data);
-    } else {
+    if (data instanceof Float32Array) {
+      // Convert Float32 [-1, 1] to Int16 PCM (Deepgram expects linear16)
+      const int16 = new Int16Array(data.length);
+      for (let i = 0; i < data.length; i++) {
+        const s = Math.max(-1, Math.min(1, data[i]!));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
+      this.ws.send(int16.buffer);
+    } else if (data instanceof Int16Array) {
       this.ws.send(data.buffer);
+    } else {
+      this.ws.send(data);
     }
   }
 

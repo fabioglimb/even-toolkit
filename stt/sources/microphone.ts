@@ -15,6 +15,13 @@ export class MicrophoneSource implements AudioSource {
   private listeners: Array<(pcm: Float32Array, sampleRate: number) => void> = [];
 
   async start(): Promise<void> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error(
+        'getUserMedia not available — likely running in a WebView. ' +
+        'Use glass-bridge source or pass a custom AudioSource instead.'
+      );
+    }
+
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { sampleRate: DEFAULT_SAMPLE_RATE, channelCount: 1 },
     });
