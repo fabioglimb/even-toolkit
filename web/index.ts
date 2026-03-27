@@ -167,6 +167,12 @@ export type { AudioPlayerProps } from './components/audio-player';
 export { AppShell } from './components/app-shell';
 export type { AppShellProps } from './components/app-shell';
 
+export { SideDrawer, DrawerTrigger, DrawerHeaderContext, useDrawerHeader } from './components/side-drawer';
+export type { SideDrawerProps, SideDrawerItem, DrawerHeaderConfig, DrawerHeaderContextValue } from './components/side-drawer';
+
+export { DrawerShell } from './components/drawer-shell';
+export type { DrawerShellProps } from './components/drawer-shell';
+
 // Scroll Picker
 export { ScrollPicker, DatePicker, TimePicker, SelectionPicker } from './components/scroll-picker';
 export type { ScrollPickerProps, ScrollColumn, DatePickerProps, TimePickerProps, SelectionPickerProps } from './components/scroll-picker';

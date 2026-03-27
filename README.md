@@ -30,7 +30,7 @@ import { Button, Card, NavBar, ListItem, Toggle, AppShell } from 'even-toolkit/w
 
 **Primitives:** Button, Card, Badge, Input, Textarea, Select, Checkbox, RadioGroup, Slider, InputGroup, Skeleton, Progress, StatusDot, Pill, Toggle, SegmentedControl, Table, Kbd, Divider
 
-**Layout:** AppShell, Page, NavBar, NavHeader, ScreenHeader, SectionHeader, SettingsGroup, CategoryFilter, ListItem (swipe-to-delete), SearchBar, Tag, TagCarousel, TagCard, SliderIndicator, PageIndicator, StepIndicator, Timeline, StatGrid, StatusProgress
+**Layout:** AppShell, Page, NavBar, NavHeader, SideDrawer, DrawerShell, DrawerTrigger, ScreenHeader, SectionHeader, SettingsGroup, CategoryFilter, ListItem (swipe-to-delete), SearchBar, Tag, TagCarousel, TagCard, SliderIndicator, PageIndicator, StepIndicator, Timeline, StatGrid, StatusProgress
 
 **Feedback:** TimerRing, Dialog, ConfirmDialog, Toast, EmptyState, Loading, BottomSheet, CTAGroup, ScrollPicker, DatePicker, TimePicker, SelectionPicker
 
@@ -316,7 +316,53 @@ Light theme following Even Realities 2025 guidelines:
 | Normal Subtitle | 13px | 400 | -0.13px |
 | Normal Detail | 11px | 400 | -0.11px |
 
-## Quick Start
+## Navigation Patterns
+
+### DrawerShell (recommended)
+
+Side drawer navigation with automatic hamburger/back-button detection, header context for nested screens, and `bottomItems` for pinned items like Settings.
+
+```tsx
+import { DrawerShell, useDrawerHeader } from 'even-toolkit/web';
+import type { SideDrawerItem } from 'even-toolkit/web';
+
+// In your shell/layout:
+const MENU_ITEMS: SideDrawerItem[] = [
+  { id: '/', label: 'Home', section: 'App' },
+];
+const BOTTOM_ITEMS: SideDrawerItem[] = [
+  { id: '/settings', label: 'Settings', section: 'App' },
+];
+
+function Shell() {
+  return (
+    <DrawerShell
+      items={MENU_ITEMS}
+      bottomItems={BOTTOM_ITEMS}
+      title="MyApp"
+      getPageTitle={(p) => p === '/' ? 'MyApp' : 'Page'}
+      deriveActiveId={(p) => p}
+    />
+  );
+}
+
+// In nested screens — customize the header:
+function DetailScreen() {
+  useDrawerHeader({
+    title: 'Detail',
+    backTo: '/',                        // shows back button instead of hamburger
+    right: <Button size="sm">Save</Button>,
+    below: <Progress value={50} />,     // below header (progress bars)
+    footer: <StepIndicator ... />,      // fixed bottom area
+    hidden: true,                       // hide header entirely
+  });
+  return <div>...</div>;
+}
+```
+
+### NavBar + AppShell (tab bar)
+
+Horizontal tab bar for simpler apps.
 
 ```tsx
 import { AppShell, NavBar, ScreenHeader, Button, Card } from 'even-toolkit/web';
