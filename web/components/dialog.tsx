@@ -21,6 +21,9 @@ interface DialogProps {
 function Dialog({ open, onClose, title, icon, children, actions, className }: DialogProps) {
   const [visible, setVisible] = React.useState(false);
   const [closing, setClosing] = React.useState(false);
+  const stopPropagation = React.useCallback((event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  }, []);
 
   React.useEffect(() => {
     if (open) {
@@ -42,11 +45,27 @@ function Dialog({ open, onClose, title, icon, children, actions, className }: Di
     return () => document.removeEventListener('keydown', handler);
   }, [visible, onClose]);
 
+  React.useEffect(() => {
+    if (!visible) return;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-6"
+      className="fixed inset-0 z-50 flex items-center justify-center px-6 overscroll-contain"
+      onTouchStartCapture={stopPropagation}
+      onTouchMoveCapture={stopPropagation}
+      onTouchEndCapture={stopPropagation}
+      onWheelCapture={stopPropagation}
       style={{ animation: closing ? 'fadeOut 200ms ease forwards' : 'fadeIn 200ms ease' }}
     >
       <div className="absolute inset-0 bg-overlay" onClick={onClose} />

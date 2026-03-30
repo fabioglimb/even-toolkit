@@ -28,6 +28,7 @@ export class DeepgramProvider implements STTProvider {
   private language = 'en';
   private modelId = 'nova-2';
   private ws: WebSocket | null = null;
+  private suppressSocketEvents = false;
 
   private transcriptCbs: Array<(t: STTTranscript) => void> = [];
   private stateCbs: Array<(s: STTState) => void> = [];
@@ -51,8 +52,9 @@ export class DeepgramProvider implements STTProvider {
 
   start(): void {
     if (this.ws) {
-      this.closeSocket();
+      this.closeSocket(true);
     }
+    this.suppressSocketEvents = false;
 
     const params = new URLSearchParams({
       model: this.modelId,
@@ -98,6 +100,7 @@ export class DeepgramProvider implements STTProvider {
     };
 
     this.ws.onerror = (event) => {
+      if (this.suppressSocketEvents) return;
       sttLog('deepgram: WebSocket error', event);
       const err: STTError = {
         code: 'network',
@@ -110,6 +113,11 @@ export class DeepgramProvider implements STTProvider {
 
     this.ws.onclose = () => {
       this.ws = null;
+      if (this.suppressSocketEvents) {
+        this.suppressSocketEvents = false;
+        this.setState('idle');
+        return;
+      }
       if (this._state === 'listening') {
         this.setState('idle');
       }
@@ -140,15 +148,15 @@ export class DeepgramProvider implements STTProvider {
       // Send close message per Deepgram protocol
       this.ws.send(JSON.stringify({ type: 'CloseStream' }));
     }
-    this.closeSocket();
+    this.closeSocket(true);
   }
 
   abort(): void {
-    this.closeSocket();
+    this.closeSocket(true);
   }
 
   dispose(): void {
-    this.closeSocket();
+    this.closeSocket(true);
     this.transcriptCbs = [];
     this.stateCbs = [];
     this.errorCbs = [];
@@ -171,10 +179,18 @@ export class DeepgramProvider implements STTProvider {
 
   // ── Private ──
 
-  private closeSocket(): void {
-    if (this.ws) {
-      try { this.ws.close(); } catch { /* ignore */ }
+  private closeSocket(silent = false): void {
+    const socket = this.ws;
+    if (socket) {
       this.ws = null;
+      if (silent) {
+        this.suppressSocketEvents = true;
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+      }
+      try { socket.close(); } catch { /* ignore */ }
     }
     this.setState('idle');
   }

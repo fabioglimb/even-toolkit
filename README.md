@@ -28,7 +28,7 @@ npx create-even-app my-app
 import { Button, Card, NavBar, ListItem, Toggle, AppShell } from 'even-toolkit/web';
 ```
 
-**Primitives:** Button, Card, Badge, Input, Textarea, Select, Checkbox, RadioGroup, Slider, InputGroup, Skeleton, Progress, StatusDot, Pill, Toggle, SegmentedControl, Table, Kbd, Divider
+**Primitives:** Button, Card, Badge, Input, Textarea, Select, MultiSelect, Checkbox, RadioGroup, Slider, InputGroup, Skeleton, Progress, StatusDot, Pill, Toggle, SegmentedControl, Table, Kbd, Divider
 
 **Layout:** AppShell, Page, NavBar, NavHeader, SideDrawer, DrawerShell, DrawerTrigger, ScreenHeader, SectionHeader, SettingsGroup, CategoryFilter, ListItem (swipe-to-delete), SearchBar, Tag, TagCarousel, TagCard, SliderIndicator, PageIndicator, StepIndicator, Timeline, StatGrid, StatusProgress
 
@@ -206,14 +206,16 @@ import { line, separator, glassHeader } from 'even-toolkit/types';
 import { buildActionBar, buildStaticActionBar } from 'even-toolkit/action-bar';
 import { truncate, applyScrollIndicators } from 'even-toolkit/text-utils';
 import { renderTimerLines } from 'even-toolkit/timer-display';
+import { formatGlassHeader, formatGlassListRow } from 'even-toolkit/glass-format';
+import { renderChatBlocks, renderChatReadMode } from 'even-toolkit/glass-chat-display';
 import { createSplash, TILE_PRESETS } from 'even-toolkit/splash';
 ```
 
 **Display:** 576x288px, 10 text lines, text/columns/chart/home page modes, image tiles (max 288x144)
 
-**Input:** action-map (tap/double-tap/scroll events), gestures (debounce), keyboard bindings
+**Input:** action-map (tap/double-tap/scroll events), gestures (debounce + post-tap scroll suppression), keyboard bindings
 
-**Utilities:** splash screens, PNG encoding, text cleaning, pagination, keep-alive
+**Utilities:** splash screens, PNG encoding, text cleaning, pagination, keep-alive, chat block formatters, reusable glass text formatting helpers
 
 ---
 

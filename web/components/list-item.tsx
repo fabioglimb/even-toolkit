@@ -2,6 +2,7 @@ import { cn } from '../utils/cn';
 import { useRef, useState, useCallback } from 'react';
 import type { ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import { IcEditTrash } from '../icons/svg-icons';
+import { Loading } from './loading';
 
 interface ListItemProps {
   title: string;
@@ -9,7 +10,7 @@ interface ListItemProps {
   leading?: ReactNode;
   trailing?: ReactNode;
   onPress?: () => void;
-  onDelete?: () => void;
+  onDelete?: () => void | Promise<void>;
   className?: string;
 }
 
@@ -20,22 +21,23 @@ const DIRECTION_LOCK_PX = 10;
 function ListItem({ title, subtitle, leading, trailing, onPress, onDelete, className }: ListItemProps) {
   const [offset, setOffset] = useState(0);
   const [swiping, setSwiping] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
   const currentOffset = useRef(0);
   const direction = useRef<'none' | 'horizontal' | 'vertical'>('none');
 
   const onTouchStart = useCallback((e: ReactTouchEvent) => {
-    if (!onDelete) return;
+    if (!onDelete || deleting) return;
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     currentOffset.current = offset;
     direction.current = 'none';
     setSwiping(true);
-  }, [onDelete, offset]);
+  }, [deleting, onDelete, offset]);
 
   const onTouchMove = useCallback((e: ReactTouchEvent) => {
-    if (!swiping) return;
+    if (!swiping || deleting) return;
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
 
@@ -52,7 +54,7 @@ function ListItem({ title, subtitle, leading, trailing, onPress, onDelete, class
 
     const next = Math.min(0, Math.max(-DELETE_WIDTH, currentOffset.current + dx));
     setOffset(next);
-  }, [swiping]);
+  }, [deleting, swiping]);
 
   const onTouchEnd = useCallback(() => {
     if (!swiping) return;
@@ -61,6 +63,18 @@ function ListItem({ title, subtitle, leading, trailing, onPress, onDelete, class
     setOffset(offset < -SWIPE_THRESHOLD / 2 ? -DELETE_WIDTH : 0);
   }, [swiping, offset]);
 
+  const handleDeleteClick = useCallback(async () => {
+    if (!onDelete || deleting) return;
+    setDeleting(true);
+    try {
+      await Promise.resolve(onDelete());
+    } finally {
+      setDeleting(false);
+      setOffset(0);
+      direction.current = 'none';
+    }
+  }, [deleting, onDelete]);
+
   const Comp = onPress ? 'button' : 'div';
 
   return (
@@ -68,22 +82,23 @@ function ListItem({ title, subtitle, leading, trailing, onPress, onDelete, class
       {onDelete && offset < 0 && (
         <button
           type="button"
-          onClick={onDelete}
-          className="absolute right-0 top-0 bottom-0 flex items-center justify-center bg-negative text-text-highlight cursor-pointer"
+          onClick={handleDeleteClick}
+          disabled={deleting}
+          className="absolute right-0 top-0 bottom-0 flex items-center justify-center bg-negative text-text-highlight cursor-pointer disabled:cursor-default"
           style={{ width: DELETE_WIDTH }}
         >
-          <IcEditTrash width={20} height={20} />
+          {deleting ? <Loading size={18} className="text-text-highlight" /> : <IcEditTrash width={20} height={20} />}
         </button>
       )}
       <Comp
         type={onPress ? 'button' : undefined}
-        onClick={onPress}
+        onClick={deleting ? undefined : onPress}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         className={cn(
           'flex items-center gap-4 w-full bg-surface p-4 text-left transition-colors relative',
-          onPress && 'cursor-pointer hover:bg-surface-light',
+          onPress && !deleting && 'cursor-pointer hover:bg-surface-light',
           className,
         )}
         style={{

@@ -71,7 +71,7 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
       // Build display text from lines
       const data = configRef.current.toDisplayData(snapshot, nav);
       const text = data.lines.map(l => {
-        if (l.style === 'separator') return '\u2500'.repeat(28) + '\n';
+        if (l.style === 'separator') return '\u2500'.repeat(28);
         if (l.inverted) return `\u25B6 ${l.text}`;
         return `  ${l.text}`;
       }).join('\n');

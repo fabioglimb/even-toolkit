@@ -66,13 +66,19 @@ function DrawerShell({
   const headerTitle = headerOverride?.title ?? getPageTitle(pathname);
   const headerHidden = headerOverride?.hidden ?? false;
 
+  const handleBack = useCallback(() => {
+    const explicit = headerOverride?.backTo ?? getBackPath?.(pathname);
+    if (explicit) {
+      navigate(explicit);
+    } else {
+      // Use browser history to go back to the actual previous page
+      navigate(-1);
+    }
+  }, [navigate, headerOverride?.backTo, getBackPath, pathname]);
+
   const defaultLeft = nested
     ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(headerOverride?.backTo ?? getBackPath?.(pathname) ?? '/')}
-        >
+        <Button variant="ghost" size="icon" onClick={handleBack}>
           {backIcon}
         </Button>
       )

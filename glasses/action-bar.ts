@@ -4,8 +4,8 @@
  * Renders a row of named buttons with triangle indicators:
  *   ▶Timer◀  ▷Scroll◁  Steps
  *
- * - Active button (mode entered): filled triangles ▶Name◀
- * - Selected button (hovering in button-select mode): empty triangles ▷Name◁
+ * - Selected button (current highlight): empty triangles ▷Name◁
+ * - Active button (entered mode, not highlighted): filled triangles ▶Name◀
  * - Inactive button: plain  Name
  */
 
@@ -27,11 +27,11 @@ export function buildActionBar(
 
   return buttons.map((name, i) => {
     if (activeIdx === i) {
-      // Active mode: filled triangles
+      // Active/confirmed button: filled triangles
       return `\u25B6${name}\u25C0`;
     }
-    if (activeIdx < 0 && i === selectedIndex) {
-      // Hovering in button-select mode: empty triangles
+    if (i === selectedIndex) {
+      // Scroll highlight on a non-active button: empty triangles
       return `\u25B7${name}\u25C1`;
     }
     return ` ${name} `;
@@ -39,7 +39,7 @@ export function buildActionBar(
 }
 
 /**
- * Build a static action bar (empty triangles on selected).
+ * Build a static action bar (filled triangles on selected).
  * Useful for screens like recipe detail or completion where there's no mode switching.
  */
 export function buildStaticActionBar(
@@ -48,7 +48,7 @@ export function buildStaticActionBar(
 ): string {
   return buttons.map((name, i) => {
     if (i === selectedIndex) {
-      return `\u25B7${name}\u25C1`;
+      return `\u25B6${name}\u25C0`;
     }
     return ` ${name} `;
   }).join(' ');

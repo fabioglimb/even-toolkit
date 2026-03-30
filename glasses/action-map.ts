@@ -1,7 +1,7 @@
 import type { EvenHubEvent } from '@evenrealities/even_hub_sdk';
 import { OsEventTypeList } from '@evenrealities/even_hub_sdk';
 import type { GlassAction } from './types';
-import { tryConsumeTap, isScrollSuppressed, isScrollDebounced } from './gestures';
+import { tryConsumeTap, shouldIgnoreScroll } from './gestures';
 
 export function mapGlassEvent(event: EvenHubEvent): GlassAction | null {
   if (!event) return null;
@@ -24,10 +24,10 @@ function mapEvent(event: { eventType?: number; currentSelectItemIndex?: number }
       if (!tryConsumeTap('double')) return null;
       return { type: 'GO_BACK' };
     case OsEventTypeList.SCROLL_TOP_EVENT:
-      if (isScrollDebounced('prev') || isScrollSuppressed()) return null;
+      if (shouldIgnoreScroll('prev')) return null;
       return { type: 'HIGHLIGHT_MOVE', direction: 'up' };
     case OsEventTypeList.SCROLL_BOTTOM_EVENT:
-      if (isScrollDebounced('next') || isScrollSuppressed()) return null;
+      if (shouldIgnoreScroll('next')) return null;
       return { type: 'HIGHLIGHT_MOVE', direction: 'down' };
     default:
       // Simulator omits eventType for CLICK_EVENT (value 0).

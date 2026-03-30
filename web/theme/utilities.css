@@ -23,6 +23,17 @@
   transition: stroke-dashoffset 0.5s ease;
 }
 
+/* Force hide native select arrow on all browsers */
+select {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: none !important;
+}
+select::-ms-expand {
+  display: none;
+}
+
 /* Bottom sheet slide-up animation */
 @keyframes slideUp {
   from { transform: translateY(100%); }

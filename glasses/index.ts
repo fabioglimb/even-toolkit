@@ -13,3 +13,5 @@ export * from './glass-display-builders';
 export * from './glass-mode';
 export * from './glass-router';
 export * from './glass-screen-router';
+export * from './glass-format';
+export * from './glass-chat-display';

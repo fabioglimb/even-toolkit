@@ -40,6 +40,9 @@ export type { PillProps } from './components/pill';
 export { Toggle } from './components/toggle';
 export type { ToggleProps } from './components/toggle';
 
+export { MultiSelect } from './components/multi-select';
+export type { MultiSelectProps, MultiSelectOption } from './components/multi-select';
+
 export { SegmentedControl } from './components/segmented-control';
 export type { SegmentedControlProps, SegmentedControlOption } from './components/segmented-control';
 
