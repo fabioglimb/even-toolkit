@@ -2,7 +2,7 @@ import { cn } from '../utils/cn';
 import type { ReactNode } from 'react';
 
 interface NavHeaderProps {
-  title: string;
+  title: ReactNode;
   left?: ReactNode;
   right?: ReactNode;
   className?: string;

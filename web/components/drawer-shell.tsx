@@ -13,6 +13,7 @@ interface DrawerShellProps {
   width?: number;
   getPageTitle: (pathname: string) => string;
   deriveActiveId: (pathname: string) => string;
+  pageTitlePrefix?: ReactNode;
   isNestedRoute?: (pathname: string) => boolean;
   getBackPath?: (pathname: string) => string;
   backIcon?: ReactNode;
@@ -33,6 +34,7 @@ function DrawerShell({
   width,
   getPageTitle,
   deriveActiveId,
+  pageTitlePrefix,
   isNestedRoute,
   getBackPath,
   backIcon = DEFAULT_BACK_ICON,
@@ -63,7 +65,13 @@ function DrawerShell({
     : !allItemIds.has(pathname);
 
   // Resolve header values (screen overrides > defaults)
-  const headerTitle = headerOverride?.title ?? getPageTitle(pathname);
+  const headerTitleText = headerOverride?.title ?? getPageTitle(pathname);
+  const headerTitle = pageTitlePrefix ? (
+    <div className="flex items-center justify-center gap-1.5 min-w-0">
+      <span className="shrink-0">{pageTitlePrefix}</span>
+      <span className="truncate">{headerTitleText}</span>
+    </div>
+  ) : headerTitleText;
   const headerHidden = headerOverride?.hidden ?? false;
 
   const handleBack = useCallback(() => {
