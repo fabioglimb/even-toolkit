@@ -321,6 +321,26 @@ export class EvenHubBridge {
     this.sdk.addEventListener(handler);
   }
 
+  // ── Persistent storage (survives WebView restarts) ──
+
+  async setLocalStorage(key: string, value: string): Promise<boolean> {
+    if (!this.rawBridge) return false;
+    try {
+      return await (this.rawBridge as any).setLocalStorage(key, value);
+    } catch {
+      return false;
+    }
+  }
+
+  async getLocalStorage(key: string): Promise<string> {
+    if (!this.rawBridge) return '';
+    try {
+      return await (this.rawBridge as any).getLocalStorage(key);
+    } catch {
+      return '';
+    }
+  }
+
   dispose(): void {
     this.rawBridge = null;
   }

@@ -20,8 +20,39 @@
  *   storageSet('my-app:data', data);
  */
 
+/**
+ * Get a bridge object that has setLocalStorage/getLocalStorage.
+ * Checks window.__evenBridge (our wrapper) first,
+ * then tries the raw SDK bridge directly via waitForEvenAppBridge.
+ */
 function getBridge(): any {
-  return (window as any).__evenBridge ?? null;
+  const bridge = (window as any).__evenBridge;
+  if (bridge?.setLocalStorage) return bridge;
+  // Also check raw bridge exposed on the wrapper
+  if (bridge?.rawBridge?.setLocalStorage) return bridge.rawBridge;
+  return null;
+}
+
+/**
+ * Try to get a raw SDK bridge for hydration (before useGlasses sets window.__evenBridge).
+ * Returns null if SDK is not available (web/dev environment).
+ */
+async function getRawBridgeForHydration(): Promise<any> {
+  // If our wrapper is already set, use it
+  const existing = getBridge();
+  if (existing) return existing;
+
+  // Try to get raw bridge directly from the SDK
+  try {
+    const { EvenBetterSdk } = await import('@jappyjan/even-better-sdk');
+    const raw = await Promise.race([
+      EvenBetterSdk.getRawBridge(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+    ]);
+    return raw;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -74,11 +105,12 @@ export function storageRemove(key: string): void {
 /**
  * Hydrate browser localStorage from SDK bridge on app startup.
  * Call once before React renders so `storageGetSync` reads fresh data.
+ * Gets the raw SDK bridge directly (doesn't depend on useGlasses).
  *
  * @param keys - All storage keys used by the app
  */
 export async function hydrateFromSDK(keys: string[]): Promise<void> {
-  const bridge = getBridge();
+  const bridge = await getRawBridgeForHydration();
   if (!bridge?.getLocalStorage) return;
 
   for (const key of keys) {
