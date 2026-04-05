@@ -99,6 +99,9 @@ export type { LoadingProps } from './components/loading';
 export { NavHeader } from './components/nav-header';
 export type { NavHeaderProps } from './components/nav-header';
 
+export { BottomActionBar } from './components/bottom-action-bar';
+export type { BottomActionBarProps } from './components/bottom-action-bar';
+
 export { BottomSheet } from './components/bottom-sheet';
 export type { BottomSheetProps } from './components/bottom-sheet';
 
@@ -141,7 +144,7 @@ export { ChatContainer, ChatBubble, ChatInput, ChatThinking, ChatCodeBlock, Chat
 export type { ChatMessage, ChatContainerProps, ChatBubbleProps, ChatInputProps, ToolCall, CodeBlock } from './components/chat';
 
 export { Calendar } from './components/calendar';
-export type { CalendarProps, CalendarEvent, CalendarView } from './components/calendar';
+export type { CalendarProps, CalendarEvent, CalendarEventMove, CalendarView } from './components/calendar';
 
 export { Sparkline, LineChart, BarChart, PieChart, StatCard } from './components/chart';
 export type { SparklineProps, LineChartProps, LineChartPoint, BarChartProps, BarChartItem, PieChartProps, PieChartItem, StatCardProps } from './components/chart';

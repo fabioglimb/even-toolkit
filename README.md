@@ -231,8 +231,7 @@ Provider-agnostic speech-to-text module for voice input in G2 glasses apps.
 
 | Provider | Type | Streaming | Requires |
 |----------|------|-----------|----------|
-| `whisper-api` | Cloud (OpenAI) | No (batch) | API key |
-| `deepgram` | Cloud (Deepgram) | Yes (real-time) | API key |
+| `soniox` | Cloud (Soniox) | Yes (real-time) | API key |
 
 ### Quick Start
 
@@ -241,9 +240,9 @@ import { useSTT } from 'even-toolkit/stt/react';
 
 function VoiceInput() {
   const { transcript, isListening, start, stop } = useSTT({
-    provider: 'whisper-api',
+    provider: 'soniox',
     language: 'en-US',
-    apiKey: 'sk-...',
+    apiKey: 'your-soniox-key',
   });
 
   return (
@@ -261,10 +260,10 @@ function VoiceInput() {
 
 ```tsx
 useSTT({
-  provider: 'whisper-api' | 'deepgram',
+  provider: 'soniox',
   language: 'en-US',        // BCP-47 language tag
-  apiKey: 'your-key',       // Required for both providers
-  vad: { silenceMs: 2500 }, // Auto-stop after silence (batch mode)
+  apiKey: 'your-key',       // Required
+  vad: { silenceMs: 2500 }, // Auto-stop after silence
   chunkIntervalMs: 4000,    // Progressive transcription interval
   continuous: false,         // Don't auto-stop on silence
 })

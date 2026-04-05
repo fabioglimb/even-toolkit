@@ -102,6 +102,29 @@ export const DEFAULT_COLUMNS = {
   col3W: DISPLAY_W - 384,
 };
 
+// ── Split layout (fixed header + two lower panes) ──
+
+export const SPLIT_HEADER = {
+  x: 0,
+  y: 0,
+  w: DISPLAY_W,
+  h: 56,
+};
+
+export const SPLIT_LEFT = {
+  x: 0,
+  y: SPLIT_HEADER.h,
+  w: 336,
+  h: DISPLAY_H - SPLIT_HEADER.h,
+};
+
+export const SPLIT_RIGHT = {
+  x: 336,
+  y: SPLIT_HEADER.h,
+  w: DISPLAY_W - 336,
+  h: DISPLAY_H - SPLIT_HEADER.h,
+};
+
 // ── Legacy compat ──
 
 export const MAIN_SLOT = {

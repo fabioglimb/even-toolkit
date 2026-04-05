@@ -3,14 +3,10 @@
  *
  * Confirmed working on G2:  █ (full block), ─ (box drawing horizontal)
  * NOT working on G2:  ░ ▒ ▓ (shading), ╔═╗║ (double box drawing), ▀▄ (half blocks)
- *
- * Renders as 2 lines — text centered using ─ padding to match bar width:
- *      ─────── ▶  06:44 ───────
- *      ████████████────────────
  */
 
 const BLOCK_FULL = '\u2588';     // █  (filled portion)
-const LINE_THIN = '\u2500';      // ─  (remaining portion + centering filler)
+const LINE_THIN = '\u2500';      // ─
 const ICON_PLAY = '\u25B6';      // ▶
 const ICON_PAUSE = '\u2588';     // █  (single block for paused)
 const ICON_DONE = 'OK';
@@ -28,33 +24,29 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** Center text above bar — spaces are ~4.5x narrower than █/─ on G2 font */
-function center(text: string, barWidth: number): string {
-  const pad = Math.max(0, Math.floor((barWidth - text.length) / 2));
-  return ' '.repeat(Math.round(pad * 6.7)) + text;
-}
-
 /**
  * Render a 2-line timer display for the G2 glasses.
- * Line 1: ─── icon  MM:SS ─── (centered with ─ filler, same visual width as bar)
- * Line 2: ████████████──────── (progress bar)
+ * Both the timer label and the progress bar are returned flush-left.
+ * `barWidth` still controls the visual width of the progress bar itself.
  *
  * @param timer    Current timer state
- * @param barWidth Number of characters for the progress bar (default 24)
+ * @param barWidth Number of characters for the progress bar
+ * @param frameWidth Unused visual frame width retained for call-site compatibility
  */
-export function renderTimerLines(timer: TimerState, barWidth = 18): string[] {
+export function renderTimerLines(timer: TimerState, barWidth = 18, frameWidth = barWidth): string[] {
   const { running, remaining, total } = timer;
+  void frameWidth;
 
   if (total === 0 && remaining === 0) {
     return [
-      center(` ${ICON_IDLE}  00:00 `, barWidth),
+      `${ICON_IDLE}  00:00`,
       LINE_THIN.repeat(barWidth),
     ];
   }
 
   if (remaining <= 0 && total > 0) {
     return [
-      center(` ${ICON_DONE}  00:00 `, barWidth),
+      `${ICON_DONE}  00:00`,
       BLOCK_FULL.repeat(barWidth),
     ];
   }
@@ -67,7 +59,7 @@ export function renderTimerLines(timer: TimerState, barWidth = 18): string[] {
   const bar = BLOCK_FULL.repeat(filled) + LINE_THIN.repeat(empty);
 
   return [
-    center(` ${icon}  ${time} `, barWidth),
+    `${icon}  ${time}`,
     bar,
   ];
 }

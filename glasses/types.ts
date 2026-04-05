@@ -12,6 +12,9 @@ export interface DisplayData {
   lines: DisplayLine[];
 }
 
+export const GLASSES_TEXT_PREFIX = '  ';
+export const GLASSES_SEPARATOR_WIDTH = 27;
+
 export function line(text: string, style: LineStyle = 'normal', inverted = false): DisplayLine {
   return { text, inverted, style };
 }
@@ -36,11 +39,41 @@ export function glassHeader(title: string, actionBar?: string): DisplayLine[] {
   ];
 }
 
+export function renderTextPageLine(line: DisplayLine): string {
+  if (line.style === 'separator') return `${GLASSES_TEXT_PREFIX}${'─'.repeat(GLASSES_SEPARATOR_WIDTH)}`;
+  if (line.inverted) return `▶ ${line.text}`;
+  return `${GLASSES_TEXT_PREFIX}${line.text}`;
+}
+
+export function renderTextPageLines(lines: DisplayLine[]): string {
+  return lines.map(renderTextPageLine).join('\n');
+}
+
 // ── Column layout types (for multi-text-container pages) ──
 
 export interface ColumnData {
   /** One string per column — each column is a separate text container at a fixed pixel position */
   columns: string[];
+}
+
+export interface SplitLayout {
+  /** Full-width header height in pixels */
+  headerHeight?: number;
+  /** Left pane width in pixels */
+  leftWidth?: number;
+  /** Right pane width in pixels; defaults to remaining width */
+  rightWidth?: number;
+}
+
+export interface SplitData {
+  /** Full-width top header block */
+  header: string;
+  /** Bottom-left pane */
+  left: string;
+  /** Bottom-right pane */
+  right: string;
+  /** Optional per-screen container sizing */
+  layout?: SplitLayout;
 }
 
 // ── Image tile types (for chart/image pages) ──
@@ -57,6 +90,7 @@ export type PageMode =
   | 'splash'    // initial splash screen (text or image)
   | 'text'      // single full-screen text container (settings, simple screens)
   | 'columns'   // multiple side-by-side text containers (watchlist, tables)
+  | 'split'     // fixed top header + two bottom panes
   | 'home'      // image tile + text + empty overlay (home screens)
   | 'chart';    // 3 image tiles + text (chart detail)
 

@@ -78,6 +78,11 @@ function Column({ options, selectedValue, onChange }: ColumnProps) {
     () => Math.max(0, options.findIndex((o) => o.value === selectedValue)),
     [options, selectedValue],
   );
+  const [activeIndex, setActiveIndex] = React.useState(selectedIndex);
+
+  const setActiveIndexIfNeeded = React.useCallback((nextIndex: number) => {
+    setActiveIndex((current) => (current === nextIndex ? current : nextIndex));
+  }, []);
 
   // Scroll to selected value on mount and when selectedValue changes externally
   React.useEffect(() => {
@@ -85,9 +90,10 @@ function Column({ options, selectedValue, onChange }: ColumnProps) {
     if (!el) return;
     // Only programmatically scroll when not user-initiated
     if (isUserScrolling.current) return;
+    setActiveIndexIfNeeded(selectedIndex);
     const targetTop = selectedIndex * ITEM_HEIGHT;
     el.scrollTo({ top: targetTop, behavior: 'instant' });
-  }, [selectedIndex]);
+  }, [selectedIndex, setActiveIndexIfNeeded]);
 
   React.useEffect(() => {
     isMounted.current = true;
@@ -98,20 +104,26 @@ function Column({ options, selectedValue, onChange }: ColumnProps) {
   }, []);
 
   const handleScroll = React.useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
     isUserScrolling.current = true;
+    const liveIndex = Math.max(0, Math.min(Math.round(el.scrollTop / ITEM_HEIGHT), options.length - 1));
+    setActiveIndexIfNeeded(liveIndex);
     if (scrollTimer.current) clearTimeout(scrollTimer.current);
 
     scrollTimer.current = setTimeout(() => {
       if (!isMounted.current) return;
-      const el = containerRef.current;
-      if (!el) return;
+      const currentEl = containerRef.current;
+      if (!currentEl) return;
 
-      const scrollTop = el.scrollTop;
+      const scrollTop = currentEl.scrollTop;
       const closestIndex = Math.round(scrollTop / ITEM_HEIGHT);
       const clampedIndex = Math.max(0, Math.min(closestIndex, options.length - 1));
 
       // Snap to the closest item
-      el.scrollTo({ top: clampedIndex * ITEM_HEIGHT, behavior: 'smooth' });
+      currentEl.scrollTo({ top: clampedIndex * ITEM_HEIGHT, behavior: 'smooth' });
+      setActiveIndexIfNeeded(clampedIndex);
 
       const newValue = options[clampedIndex]?.value;
       if (newValue && newValue !== selectedValue) {
@@ -123,7 +135,7 @@ function Column({ options, selectedValue, onChange }: ColumnProps) {
         if (isMounted.current) isUserScrolling.current = false;
       }, 150);
     }, SCROLL_DEBOUNCE);
-  }, [options, selectedValue, onChange]);
+  }, [options, selectedValue, onChange, setActiveIndexIfNeeded]);
 
   const handleItemClick = React.useCallback(
     (index: number) => {
@@ -131,13 +143,14 @@ function Column({ options, selectedValue, onChange }: ColumnProps) {
       if (!el) return;
       isUserScrolling.current = true;
       el.scrollTo({ top: index * ITEM_HEIGHT, behavior: 'smooth' });
+      setActiveIndexIfNeeded(index);
       const newValue = options[index]?.value;
       if (newValue) onChange(newValue);
       setTimeout(() => {
         if (isMounted.current) isUserScrolling.current = false;
       }, 300);
     },
-    [options, onChange],
+    [options, onChange, setActiveIndexIfNeeded],
   );
 
   return (
@@ -157,8 +170,8 @@ function Column({ options, selectedValue, onChange }: ColumnProps) {
       <div style={{ height: PADDING_HEIGHT }} aria-hidden />
 
       {options.map((option, i) => {
-        const distance = Math.abs(i - selectedIndex);
-        const isSelected = i === selectedIndex;
+        const distance = Math.abs(i - activeIndex);
+        const isSelected = i === activeIndex;
 
         // Opacity gradient: selected=1, +-1=0.4, +-2=0.2, beyond=0
         let opacity = 0;

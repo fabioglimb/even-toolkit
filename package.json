@@ -1,6 +1,6 @@
 {
   "name": "even-toolkit",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "bin": {
     "even-toolkit": "./bin/create.js"
   },
@@ -353,13 +353,9 @@
       "types": "./dist/stt/audio/pcm-utils.d.ts",
       "import": "./dist/stt/audio/pcm-utils.js"
     },
-    "./stt/providers/whisper-api": {
-      "types": "./dist/stt/providers/whisper-api.d.ts",
-      "import": "./dist/stt/providers/whisper-api.js"
-    },
-    "./stt/providers/deepgram": {
-      "types": "./dist/stt/providers/deepgram.d.ts",
-      "import": "./dist/stt/providers/deepgram.js"
+    "./stt/providers/soniox": {
+      "types": "./dist/stt/providers/soniox.d.ts",
+      "import": "./dist/stt/providers/soniox.js"
     }
   },
   "files": [

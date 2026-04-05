@@ -37,7 +37,7 @@ export function useSTT(config: UseSTTConfig = {}): UseSTTReturn {
 
     sttLog('useSTT: start()', cfg.provider, 'apiKey?', !!cfg.apiKey);
     const engine = new STTEngine({
-      provider: cfg.provider ?? 'whisper-api',
+      provider: cfg.provider ?? 'soniox',
       source: cfg.source,
       language: cfg.language,
       mode: cfg.mode,

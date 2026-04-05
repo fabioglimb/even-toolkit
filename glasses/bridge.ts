@@ -9,8 +9,8 @@ import {
   type EvenAppBridge,
   type EvenHubEvent,
 } from '@evenrealities/even_hub_sdk';
-import { DISPLAY_W, DISPLAY_H, CHART_TEXT, IMAGE_TILES } from './layout';
-import type { PageMode } from './types';
+import { DISPLAY_W, DISPLAY_H, CHART_TEXT, IMAGE_TILES, SPLIT_HEADER, SPLIT_LEFT, SPLIT_RIGHT } from './layout';
+import type { PageMode, SplitLayout } from './types';
 import { notifyTextUpdate } from './gestures';
 
 function noBorder(el: EvenBetterTextElement): EvenBetterTextElement {
@@ -38,6 +38,13 @@ export class EvenHubBridge {
   // Column page (watchlist, tables)
   private columnPage!: EvenBetterPage;
   private columnElements: EvenBetterTextElement[] = [];
+
+  // Split page (header + two lower panes)
+  private splitPage!: EvenBetterPage;
+  private splitHeader!: EvenBetterTextElement;
+  private splitLeft!: EvenBetterTextElement;
+  private splitRight!: EvenBetterTextElement;
+  private lastSplitLayoutKey: string | null = null;
 
   // Chart dummy (for SDK state tracking before raw bridge chart/home)
   private chartDummyPage!: EvenBetterPage;
@@ -85,6 +92,29 @@ export class EvenHubBridge {
         .setSize(s => s.setWidth(col.w).setHeight(DISPLAY_H));
       return el;
     });
+
+    // ── Split page: empty overlay + full-width header + two bottom panes ──
+    this.splitPage = this.sdk.createPage('split');
+    const splitOverlay = noBorder(this.splitPage.addTextElement(''));
+    splitOverlay
+      .setPosition(p => p.setX(0).setY(0))
+      .setSize(s => s.setWidth(DISPLAY_W).setHeight(DISPLAY_H));
+    splitOverlay.markAsEventCaptureElement();
+
+    this.splitHeader = noBorder(this.splitPage.addTextElement(''));
+    this.splitHeader
+      .setPosition(p => p.setX(SPLIT_HEADER.x).setY(SPLIT_HEADER.y))
+      .setSize(s => s.setWidth(SPLIT_HEADER.w).setHeight(SPLIT_HEADER.h));
+
+    this.splitLeft = noBorder(this.splitPage.addTextElement(''));
+    this.splitLeft
+      .setPosition(p => p.setX(SPLIT_LEFT.x).setY(SPLIT_LEFT.y))
+      .setSize(s => s.setWidth(SPLIT_LEFT.w).setHeight(SPLIT_LEFT.h));
+
+    this.splitRight = noBorder(this.splitPage.addTextElement(''));
+    this.splitRight
+      .setPosition(p => p.setX(SPLIT_RIGHT.x).setY(SPLIT_RIGHT.y))
+      .setSize(s => s.setWidth(SPLIT_RIGHT.w).setHeight(SPLIT_RIGHT.h));
 
     // ── Chart dummy page (for SDK state tracking) ──
     this.chartDummyPage = this.sdk.createPage('chart-dummy');
@@ -152,6 +182,122 @@ export class EvenHubBridge {
     }
     notifyTextUpdate();
     await this.sdk.renderPage(this.columnPage);
+  }
+
+  // ── Split page (header + two-pane layout) ──
+
+  private resolveSplitLayout(layout?: SplitLayout): {
+    headerHeight: number;
+    leftWidth: number;
+    rightWidth: number;
+    key: string;
+  } {
+    const headerHeight = Math.max(40, Math.min(DISPLAY_H - 80, layout?.headerHeight ?? SPLIT_HEADER.h));
+    const requestedLeft = layout?.leftWidth ?? (layout?.rightWidth ? DISPLAY_W - layout.rightWidth : SPLIT_LEFT.w);
+    const leftWidth = Math.max(180, Math.min(DISPLAY_W - 180, requestedLeft));
+    const rightWidth = DISPLAY_W - leftWidth;
+    return {
+      headerHeight,
+      leftWidth,
+      rightWidth,
+      key: `${headerHeight}:${leftWidth}`,
+    };
+  }
+
+  async showSplitPage(header: string, left: string, right: string, layout?: SplitLayout): Promise<void> {
+    if (!this._pageReady) return;
+    const resolved = this.resolveSplitLayout(layout);
+    if (this.rawBridge) {
+      await this.sdk.renderPage(this.chartDummyPage);
+      await this.rawBridge.rebuildPageContainer(
+        new RebuildPageContainer({
+          containerTotalNum: 4,
+          textObject: [
+            new TextContainerProperty({
+              containerID: 1, containerName: 'overlay',
+              xPosition: 0, yPosition: 0, width: DISPLAY_W, height: DISPLAY_H,
+              borderWidth: 0, borderColor: 0, paddingLength: 0,
+              content: '', isEventCapture: 1,
+            }),
+            new TextContainerProperty({
+              containerID: 6, containerName: 'split-header',
+              xPosition: 0, yPosition: 0, width: DISPLAY_W, height: resolved.headerHeight,
+              borderWidth: 0, borderColor: 0, paddingLength: 0,
+              content: header, isEventCapture: 0,
+            }),
+            new TextContainerProperty({
+              containerID: 7, containerName: 'split-left',
+              xPosition: 0, yPosition: resolved.headerHeight, width: resolved.leftWidth, height: DISPLAY_H - resolved.headerHeight,
+              borderWidth: 0, borderColor: 0, paddingLength: 6,
+              content: left, isEventCapture: 0,
+            }),
+            new TextContainerProperty({
+              containerID: 8, containerName: 'split-right',
+              xPosition: resolved.leftWidth, yPosition: resolved.headerHeight, width: resolved.rightWidth, height: DISPLAY_H - resolved.headerHeight,
+              borderWidth: 0, borderColor: 0, paddingLength: 6,
+              content: right, isEventCapture: 0,
+            }),
+          ],
+          imageObject: [],
+        }),
+      );
+      this.lastSplitLayoutKey = resolved.key;
+      this._currentMode = 'split';
+      return;
+    }
+    this.splitHeader.setPosition((p) => p.setX(0).setY(0));
+    this.splitHeader.setSize((s) => s.setWidth(DISPLAY_W).setHeight(resolved.headerHeight));
+    this.splitHeader.setBorder((b) => b.setWidth(0).setColor('0').setRadius(0));
+    this.splitLeft.setPosition((p) => p.setX(0).setY(resolved.headerHeight));
+    this.splitLeft.setSize((s) => s.setWidth(resolved.leftWidth).setHeight(DISPLAY_H - resolved.headerHeight));
+    this.splitLeft.setBorder((b) => b.setWidth(0).setColor('0').setRadius(0));
+    this.splitRight.setPosition((p) => p.setX(resolved.leftWidth).setY(resolved.headerHeight));
+    this.splitRight.setSize((s) => s.setWidth(resolved.rightWidth).setHeight(DISPLAY_H - resolved.headerHeight));
+    this.splitRight.setBorder((b) => b.setWidth(0).setColor('0').setRadius(0));
+    this.splitHeader.setContent(header);
+    this.splitLeft.setContent(left);
+    this.splitRight.setContent(right);
+    notifyTextUpdate();
+    await this.sdk.renderPage(this.splitPage);
+    this._currentMode = 'split';
+  }
+
+  async updateSplitPage(header: string, left: string, right: string, layout?: SplitLayout): Promise<void> {
+    if (!this._pageReady) return;
+    if (this.rawBridge) {
+      const resolved = this.resolveSplitLayout(layout);
+      if (this._currentMode !== 'split' || this.lastSplitLayoutKey !== resolved.key) {
+        await this.showSplitPage(header, left, right, layout);
+        return;
+      }
+      notifyTextUpdate();
+      await Promise.all([
+        this.rawBridge.textContainerUpgrade(
+          new TextContainerUpgrade({
+            containerID: 6, containerName: 'split-header',
+            contentOffset: 0, contentLength: 2000, content: header,
+          }),
+        ),
+        this.rawBridge.textContainerUpgrade(
+          new TextContainerUpgrade({
+            containerID: 7, containerName: 'split-left',
+            contentOffset: 0, contentLength: 2000, content: left,
+          }),
+        ),
+        this.rawBridge.textContainerUpgrade(
+          new TextContainerUpgrade({
+            containerID: 8, containerName: 'split-right',
+            contentOffset: 0, contentLength: 2000, content: right,
+          }),
+        ),
+      ]);
+      return;
+    }
+    this.splitHeader.setContent(header);
+    this.splitLeft.setContent(left);
+    this.splitRight.setContent(right);
+    notifyTextUpdate();
+    await this.sdk.renderPage(this.splitPage);
   }
 
   // ── Convenience: Watchlist (3-column layout) ──
@@ -293,7 +439,7 @@ export class EvenHubBridge {
   // ── Image sending (for home + chart modes) ──
 
   async sendImage(containerID: number, containerName: string, pngBytes: Uint8Array): Promise<void> {
-    if (!this.rawBridge || !this._pageReady || this._currentMode === 'text' || this._currentMode === 'columns' || pngBytes.length === 0) return;
+    if (!this.rawBridge || !this._pageReady || this._currentMode === 'text' || this._currentMode === 'columns' || this._currentMode === 'split' || pngBytes.length === 0) return;
     await this.rawBridge.updateImageRawData(
       new ImageRawDataUpdate({ containerID, containerName, imageData: pngBytes }),
     );
@@ -313,6 +459,20 @@ export class EvenHubBridge {
     try {
       await (this.rawBridge as any).callEvenApp('imuControl', { isOpen: false });
     } catch { /* IMU might not be supported */ }
+  }
+
+  // ── Shutdown ──
+
+  async showShutdownContainer(exitMode: 0 | 1 = 1): Promise<boolean> {
+    if (!this.rawBridge || !this._pageReady) return false;
+    try {
+      if (typeof this.rawBridge.shutDownPageContainer === 'function') {
+        return await this.rawBridge.shutDownPageContainer(exitMode);
+      }
+      return await (this.rawBridge as any).callEvenApp('shutDownPageContainer', { exitMode });
+    } catch {
+      return false;
+    }
   }
 
   // ── Events ──

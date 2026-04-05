@@ -13,6 +13,14 @@ export interface CalendarEvent {
   description?: string;
 }
 
+export interface CalendarEventMove {
+  event: CalendarEvent;
+  start: Date;
+  end: Date;
+  dayDelta: number;
+  minuteDelta: number;
+}
+
 type CalendarView = 'month' | 'week' | 'day';
 
 // ─── Date helpers ───────────────────────────────────────────────
@@ -47,6 +55,11 @@ function formatTime(d: Date): string {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const EVENT_DRAG_HOLD_MS = 260;
+const EVENT_DRAG_THRESHOLD_PX = 72;
+const DAY_ROW_HEIGHT_PX = 48;
+const EVENT_DRAG_MINUTE_STEP = 15;
+const EVENT_DRAG_MINUTE_THRESHOLD_PX = DAY_ROW_HEIGHT_PX * (EVENT_DRAG_MINUTE_STEP / 60);
 
 // ─── CalendarHeader ─────────────────────────────────────────────
 
@@ -222,14 +235,110 @@ function WeekView({ date, events, onEventClick }: {
 
 // ─── DayView ────────────────────────────────────────────────────
 
-function DayView({ date, events, onEventClick }: {
+function DayView({ date, events, onEventClick, onEventMove, onDateChange }: {
   date: Date;
   events: CalendarEvent[];
   onEventClick?: (e: CalendarEvent) => void;
+  onEventMove?: (move: CalendarEventMove) => void;
+  onDateChange?: (d: Date) => void;
 }) {
   const dayEvents = events.filter((e) => isSameDay(new Date(e.start), date));
   const now = new Date();
   const isCurrentDay = isToday(date);
+  const [draggingId, setDraggingId] = React.useState<string | null>(null);
+  const [dragOffsetX, setDragOffsetX] = React.useState(0);
+  const [dragOffsetY, setDragOffsetY] = React.useState(0);
+  const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressEventRef = React.useRef<CalendarEvent | null>(null);
+  const startXRef = React.useRef(0);
+  const startYRef = React.useRef(0);
+  const pointerMovedRef = React.useRef(false);
+
+  const clearDragState = React.useCallback(() => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    pressEventRef.current = null;
+    pointerMovedRef.current = false;
+    setDraggingId(null);
+    setDragOffsetX(0);
+    setDragOffsetY(0);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    };
+  }, []);
+
+  const handlePointerDown = React.useCallback((event: CalendarEvent, clientX: number, clientY: number) => {
+    startXRef.current = clientX;
+    startYRef.current = clientY;
+    pressEventRef.current = event;
+    pointerMovedRef.current = false;
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = setTimeout(() => {
+      setDraggingId(event.id);
+      setDragOffsetX(0);
+      holdTimerRef.current = null;
+    }, EVENT_DRAG_HOLD_MS);
+  }, []);
+
+  const handlePointerMove = React.useCallback((clientX: number, clientY: number) => {
+    const dx = clientX - startXRef.current;
+    const dy = clientY - startYRef.current;
+    if (!draggingId) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        pointerMovedRef.current = true;
+      }
+      if (Math.abs(dx) > 12 || Math.abs(dy) > 12) {
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
+      }
+      return;
+    }
+    setDragOffsetX(dx);
+    setDragOffsetY(dy);
+  }, [draggingId]);
+
+  const handlePointerEnd = React.useCallback(() => {
+    const dragged = pressEventRef.current;
+    if (!dragged) {
+      clearDragState();
+      return;
+    }
+
+    if (draggingId) {
+      const dayDelta = Math.trunc(dragOffsetX / EVENT_DRAG_THRESHOLD_PX);
+      const minuteDelta = Math.round(dragOffsetY / EVENT_DRAG_MINUTE_THRESHOLD_PX) * EVENT_DRAG_MINUTE_STEP;
+      if (dayDelta !== 0 || minuteDelta !== 0) {
+        const durationMs = new Date(dragged.end).getTime() - new Date(dragged.start).getTime();
+        const nextStart = addDays(new Date(dragged.start), dayDelta);
+        nextStart.setMinutes(nextStart.getMinutes() + minuteDelta);
+        const nextEnd = new Date(nextStart.getTime() + durationMs);
+        const actualDayDelta = Math.round(
+          (startOfDay(nextStart).getTime() - startOfDay(new Date(dragged.start)).getTime()) / 86400000,
+        );
+        onEventMove?.({
+          event: dragged,
+          start: nextStart,
+          end: nextEnd,
+          dayDelta: actualDayDelta,
+          minuteDelta,
+        });
+        onDateChange?.(startOfDay(nextStart));
+      } else {
+        onEventClick?.(dragged);
+      }
+    } else if (!pointerMovedRef.current) {
+      onEventClick?.(dragged);
+    }
+
+    clearDragState();
+  }, [clearDragState, dragOffsetX, dragOffsetY, draggingId, onDateChange, onEventClick, onEventMove]);
 
   return (
     <div className="overflow-y-auto max-h-[500px]">
@@ -250,9 +359,27 @@ function DayView({ date, events, onEventClick }: {
                 <button
                   key={e.id}
                   type="button"
-                  onClick={() => onEventClick?.(e)}
                   className="w-full text-left rounded-[6px] px-3 py-2 mb-1 cursor-pointer transition-colors"
-                  style={{ backgroundColor: (e.color ?? 'var(--color-accent)') + '20' }}
+                  style={{
+                    backgroundColor: (e.color ?? 'var(--color-accent)') + '20',
+                    transform: draggingId === e.id ? `translate(${dragOffsetX}px, ${dragOffsetY}px)` : undefined,
+                    transition: draggingId === e.id ? 'none' : 'transform 180ms ease, background-color 180ms ease',
+                    opacity: draggingId === e.id ? 0.9 : 1,
+                    boxShadow: draggingId === e.id ? '0 6px 18px rgba(0,0,0,0.12)' : undefined,
+                    touchAction: 'none',
+                    position: draggingId === e.id ? 'relative' : undefined,
+                    zIndex: draggingId === e.id ? 20 : undefined,
+                  }}
+                  onPointerDown={(ev) => handlePointerDown(e, ev.clientX, ev.clientY)}
+                  onPointerMove={(ev) => handlePointerMove(ev.clientX, ev.clientY)}
+                  onPointerUp={handlePointerEnd}
+                  onPointerCancel={clearDragState}
+                  onPointerLeave={() => {
+                    if (!draggingId && holdTimerRef.current) {
+                      clearTimeout(holdTimerRef.current);
+                      holdTimerRef.current = null;
+                    }
+                  }}
                 >
                   <div className="text-[15px] tracking-[-0.15px]" style={{ color: e.color ?? 'var(--color-accent)' }}>{e.title}</div>
                   <div className="text-[11px] tracking-[-0.11px] text-text-dim">
@@ -278,6 +405,7 @@ interface CalendarProps {
   selectedDate?: Date;
   onDateChange?: (d: Date) => void;
   onEventClick?: (e: CalendarEvent) => void;
+  onEventMove?: (move: CalendarEventMove) => void;
   className?: string;
 }
 
@@ -288,6 +416,7 @@ function Calendar({
   selectedDate: controlledDate,
   onDateChange,
   onEventClick,
+  onEventMove,
   className,
 }: CalendarProps) {
   const [internalView, setInternalView] = React.useState<CalendarView>('month');
@@ -324,7 +453,15 @@ function Calendar({
         />
       )}
       {view === 'week' && <WeekView date={date} events={events} onEventClick={onEventClick} />}
-      {view === 'day' && <DayView date={date} events={events} onEventClick={onEventClick} />}
+      {view === 'day' && (
+        <DayView
+          date={date}
+          events={events}
+          onEventClick={onEventClick}
+          onEventMove={onEventMove}
+          onDateChange={setDate}
+        />
+      )}
     </div>
   );
 }

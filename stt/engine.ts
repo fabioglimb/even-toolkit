@@ -17,8 +17,8 @@ import { sttLog } from './debug';
 /**
  * STTEngine — orchestrates audio source -> processing -> provider.
  *
- * Batch providers (whisper-api): record audio, then transcribe on stop.
- * Streaming providers (deepgram): pipe audio in real-time via sendAudio.
+ * Streaming providers (soniox): pipe audio in real-time via sendAudio.
+ * Batch providers: record audio, then transcribe on stop.
  */
 
 export class STTEngine {
@@ -311,8 +311,8 @@ export class STTEngine {
     const isStreaming = provider.supportedModes.includes('streaming');
 
     this.providerUnsubs.push(
-      // Forward transcripts from streaming providers (deepgram emits them directly)
-      // Batch providers (whisper-api) are handled by transcribeFullBuffer — don't double-emit
+      // Forward transcripts from streaming providers (they emit directly)
+      // Batch providers are handled by transcribeFullBuffer — don't double-emit
       provider.onTranscript((t) => {
         if (isStreaming) this.emitTranscript(t);
       }),

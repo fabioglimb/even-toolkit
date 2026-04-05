@@ -54,7 +54,7 @@ function Select({ value, options, onValueChange, placeholder, className, disable
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
         className={cn(
-          'h-9 w-full bg-input-bg text-text rounded-[6px] pl-3 pr-8 text-[13px] tracking-[-0.13px] text-left cursor-pointer border-none flex items-center',
+          'h-9 w-full bg-input-bg text-text rounded-[6px] pl-4 pr-8 text-[17px] tracking-[-0.17px] text-left cursor-pointer border-none flex items-center',
           'transition-colors hover:bg-surface-light',
           disabled && 'opacity-50 cursor-default',
         )}
@@ -85,7 +85,7 @@ function Select({ value, options, onValueChange, placeholder, className, disable
               key={o.value}
               type="button"
               className={cn(
-                'w-full text-left px-3 py-2 text-[13px] tracking-[-0.13px] cursor-pointer border-none transition-colors font-normal',
+                'w-full text-left px-4 py-2.5 text-[15px] tracking-[-0.15px] cursor-pointer border-none transition-colors font-normal',
                 o.value === value
                   ? 'bg-accent text-text-highlight'
                   : 'bg-transparent text-text hover:bg-surface-light',

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import type { DisplayData, GlassAction, GlassNavState, ColumnData } from './types';
+import type { DisplayData, GlassAction, GlassNavState, ColumnData, SplitData } from './types';
+import { renderTextPageLines } from './types';
 import { EvenHubBridge, type ColumnConfig } from './bridge';
 import { mapGlassEvent } from './action-map';
 import { bindKeyboard } from './keyboard';
@@ -19,11 +20,21 @@ export interface UseGlassesConfig<S> {
   toDisplayData: (snapshot: S, nav: GlassNavState) => DisplayData;
   /** Convert snapshot to column data (for 'columns' mode) — optional */
   toColumns?: (snapshot: S, nav: GlassNavState) => ColumnData;
+  /** Convert snapshot to split-pane data (for 'split' mode) — optional */
+  toSplit?: (snapshot: S, nav: GlassNavState) => SplitData;
   onGlassAction: (action: GlassAction, nav: GlassNavState, snapshot: S) => GlassNavState;
   deriveScreen: (path: string) => string;
   appName: string;
-  /** Page mode per screen — return 'text', 'columns', or 'home'. Default: 'text' */
-  getPageMode?: (screen: string) => 'text' | 'columns' | 'home';
+  /** Page mode per screen — return 'text', 'columns', 'split', or 'home'. Default: 'text' */
+  getPageMode?: (screen: string) => 'text' | 'columns' | 'split' | 'home';
+  /**
+   * When true (default), a double click on a home/root glasses screen
+   * opens the native Even Hub shutdown container instead of routing GO_BACK
+   * through app-specific screen handlers.
+   */
+  shutdownOnHomeBack?: boolean;
+  /** Native shutdown mode. 1 = show foreground exit layer, 0 = exit immediately. Default: 1 */
+  shutdownMode?: 0 | 1;
   /** Column layout config — default: 3 equal columns across 576px */
   columns?: ColumnConfig[];
   /** Home page image tiles — sent when getPageMode returns 'home'. Create with createSplash().getTiles() */
@@ -44,8 +55,6 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
   const hubRef = useRef<EvenHubBridge | null>(null);
   const navRef = useRef<GlassNavState>({ highlightedIndex: 0, screen: '' });
   const lastSnapshotRef = useRef<S | null>(null);
-  const sendingRef = useRef(false);
-  const pendingRef = useRef(false);
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
 
@@ -53,28 +62,26 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
   configRef.current = config;
   const lastHadImagesRef = useRef(false);
 
-  const sendDisplay = useCallback(async () => {
-    if (sendingRef.current || !hubRef.current) {
-      // Queue a retry — the current in-flight send has stale data
-      pendingRef.current = true;
+  // ── Separate busy flags for text and image pipelines ──
+  // Text updates (lightweight) never block on image sends (heavy/can stall when backgrounded)
+  const textBusyRef = useRef(false);
+  const textPendingRef = useRef(false);
+  const imgBusyRef = useRef(false);
+
+  // ── Text pipeline: layout setup + text content ──
+  const sendText = useCallback(async () => {
+    if (textBusyRef.current || !hubRef.current) {
+      textPendingRef.current = true;
       return;
     }
-    sendingRef.current = true;
-    pendingRef.current = false;
+    textBusyRef.current = true;
+    textPendingRef.current = false;
     try {
       const hub = hubRef.current;
       const snapshot = configRef.current.getSnapshot();
       const nav = navRef.current;
       const getMode = configRef.current.getPageMode ?? (() => 'text');
       const mode = getMode(nav.screen);
-
-      // Build display text from lines
-      const data = configRef.current.toDisplayData(snapshot, nav);
-      const text = data.lines.map(l => {
-        if (l.style === 'separator') return '\u2500'.repeat(28);
-        if (l.inverted) return `\u25B6 ${l.text}`;
-        return `  ${l.text}`;
-      }).join('\n');
 
       if (mode === 'columns' && configRef.current.toColumns) {
         const cols = configRef.current.toColumns(snapshot, nav);
@@ -83,23 +90,29 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
         } else {
           await hub.showColumnPage(cols.columns);
         }
+      } else if (mode === 'split' && configRef.current.toSplit) {
+        const split = configRef.current.toSplit(snapshot, nav);
+        if (hub.currentMode === 'split') {
+          await hub.updateSplitPage(split.header, split.left, split.right, split.layout);
+        } else {
+          await hub.showSplitPage(split.header, split.left, split.right, split.layout);
+        }
       } else {
-        // All modes use raw bridge (home layout) for consistent rendering.
-        // 'home' mode includes image tiles; 'text' mode passes no images.
+        const data = configRef.current.toDisplayData(snapshot, nav);
+        const text = renderTextPageLines(data.lines);
+
         const tiles = mode === 'home' ? configRef.current.homeImageTiles : undefined;
         const imageTiles = tiles?.map(t => ({ id: t.id, name: t.name, x: t.x, y: t.y, w: t.w, h: t.h }));
         const hasImages = !!imageTiles?.length;
-        // Rebuild container when switching modes or changing between image/no-image layouts
         const needsRebuild = hub.currentMode !== 'home' || hasImages !== lastHadImagesRef.current;
 
         if (!needsRebuild) {
           await hub.updateHomeText(text);
         } else {
           await hub.showHomePage(text, imageTiles);
+          // Send images in a SEPARATE pipeline — don't block text
           if (tiles) {
-            for (const tile of tiles) {
-              await hub.sendImage(tile.id, tile.name, tile.bytes);
-            }
+            sendImages(tiles);
           }
         }
         lastHadImagesRef.current = hasImages;
@@ -107,25 +120,61 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
     } catch {
       // SDK unavailable — glasses panel won't update, web still works
     } finally {
-      sendingRef.current = false;
-      // If a send was queued while we were busy, flush again with fresh data
-      if (pendingRef.current) {
-        pendingRef.current = false;
-        sendDisplay();
+      textBusyRef.current = false;
+      if (textPendingRef.current) {
+        textPendingRef.current = false;
+        sendText();
       }
     }
   }, []);
 
+  // ── Image pipeline: independent, non-blocking ──
+  const sendImages = useCallback((tiles: { id: number; name: string; bytes: Uint8Array }[]) => {
+    if (imgBusyRef.current || !hubRef.current) return;
+    imgBusyRef.current = true;
+
+    const hub = hubRef.current;
+    (async () => {
+      try {
+        for (const tile of tiles) {
+          if (!hubRef.current) break;
+          await hub.sendImage(tile.id, tile.name, tile.bytes);
+        }
+      } catch {
+        // Image send failed (backgrounded, bridge stalled) — ignore, text still works
+      } finally {
+        imgBusyRef.current = false;
+      }
+    })();
+  }, []);
+
   const flushDisplay = useCallback(() => {
-    sendDisplay();
-  }, [sendDisplay]);
+    sendText();
+  }, [sendText]);
+
+  const maybeHandleHomeShutdown = useCallback(async (action: GlassAction): Promise<boolean> => {
+    if (action.type !== 'GO_BACK') return false;
+    if (configRef.current.shutdownOnHomeBack === false) return false;
+
+    const nav = navRef.current;
+    const getMode = configRef.current.getPageMode ?? (() => 'text');
+    if (getMode(nav.screen) !== 'home') return false;
+
+    const hub = hubRef.current;
+    if (!hub) return false;
+
+    return hub.showShutdownContainer(configRef.current.shutdownMode ?? 1);
+  }, []);
 
   const handleAction = useCallback((action: GlassAction) => {
-    const snapshot = configRef.current.getSnapshot();
-    const newNav = configRef.current.onGlassAction(action, navRef.current, snapshot);
-    navRef.current = newNav;
-    flushDisplay();
-  }, [flushDisplay]);
+    void (async () => {
+      if (await maybeHandleHomeShutdown(action)) return;
+      const snapshot = configRef.current.getSnapshot();
+      const newNav = configRef.current.onGlassAction(action, navRef.current, snapshot);
+      navRef.current = newNav;
+      flushDisplay();
+    })();
+  }, [flushDisplay, maybeHandleHomeShutdown]);
 
   // Update screen from URL changes
   useEffect(() => {
