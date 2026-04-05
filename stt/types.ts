@@ -1,6 +1,6 @@
 // ── STT Provider Types ──
 
-export type STTProviderType = 'soniox' | string;
+export type STTProviderType = 'soniox' | 'whisper-api' | 'deepgram' | string;
 export type STTMode = 'streaming' | 'batch';
 export type STTState = 'idle' | 'loading' | 'listening' | 'processing' | 'error';
 
