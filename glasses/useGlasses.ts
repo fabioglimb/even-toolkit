@@ -93,9 +93,9 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
       } else if (mode === 'split' && configRef.current.toSplit) {
         const split = configRef.current.toSplit(snapshot, nav);
         if (hub.currentMode === 'split') {
-          await hub.updateSplitPage(split.header, split.left, split.right, split.layout);
+          await hub.updateSplitPage(split.header, split.panes, split.layout);
         } else {
-          await hub.showSplitPage(split.header, split.left, split.right, split.layout);
+          await hub.showSplitPage(split.header, split.panes, split.layout);
         }
       } else {
         const data = configRef.current.toDisplayData(snapshot, nav);

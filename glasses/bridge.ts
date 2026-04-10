@@ -1,5 +1,4 @@
-import { EvenBetterSdk } from '@jappyjan/even-better-sdk';
-import type { EvenBetterPage, EvenBetterTextElement } from '@jappyjan/even-better-sdk';
+import { GlassesSdk, type GlassesPage, type GlassesTextElement } from './sdk-wrapper';
 import {
   RebuildPageContainer,
   ImageContainerProperty,
@@ -13,7 +12,7 @@ import { DISPLAY_W, DISPLAY_H, CHART_TEXT, IMAGE_TILES, SPLIT_HEADER, SPLIT_LEFT
 import type { PageMode, SplitLayout } from './types';
 import { notifyTextUpdate } from './gestures';
 
-function noBorder(el: EvenBetterTextElement): EvenBetterTextElement {
+function noBorder(el: GlassesTextElement): GlassesTextElement {
   return el.setBorder(b => b.setWidth(0).setColor('0').setRadius(0));
 }
 
@@ -23,7 +22,7 @@ export interface ColumnConfig {
 }
 
 export class EvenHubBridge {
-  private sdk: EvenBetterSdk;
+  private sdk: GlassesSdk;
   /** Raw EvenHub SDK bridge — exposed for STT audio control */
   rawBridge: EvenAppBridge | null = null;
   private _currentMode: PageMode | null = null;
@@ -32,25 +31,25 @@ export class EvenHubBridge {
   // ── SDK-managed pages ──
 
   // Single text page (settings, simple screens)
-  private textPage!: EvenBetterPage;
-  private textContent!: EvenBetterTextElement;
+  private textPage!: GlassesPage;
+  private textContent!: GlassesTextElement;
 
   // Column page (watchlist, tables)
-  private columnPage!: EvenBetterPage;
-  private columnElements: EvenBetterTextElement[] = [];
+  private columnPage!: GlassesPage;
+  private columnElements: GlassesTextElement[] = [];
 
   // Split page (header + two lower panes)
-  private splitPage!: EvenBetterPage;
-  private splitHeader!: EvenBetterTextElement;
-  private splitLeft!: EvenBetterTextElement;
-  private splitRight!: EvenBetterTextElement;
+  private splitPage!: GlassesPage;
+  private splitHeader!: GlassesTextElement;
+  private splitLeft!: GlassesTextElement;
+  private splitRight!: GlassesTextElement;
   private lastSplitLayoutKey: string | null = null;
 
   // Chart dummy (for SDK state tracking before raw bridge chart/home)
-  private chartDummyPage!: EvenBetterPage;
+  private chartDummyPage!: GlassesPage;
 
   constructor(columns?: ColumnConfig[]) {
-    this.sdk = new EvenBetterSdk();
+    this.sdk = new GlassesSdk();
     const cols = columns ?? [
       { x: 0, w: 192 },
       { x: 192, w: 192 },
@@ -127,7 +126,7 @@ export class EvenHubBridge {
 
   async init(): Promise<void> {
     try {
-      this.rawBridge = await EvenBetterSdk.getRawBridge() as unknown as EvenAppBridge;
+      this.rawBridge = await GlassesSdk.getRawBridge();
       this._pageReady = true;
     } catch (err) {
       throw err;
@@ -188,56 +187,77 @@ export class EvenHubBridge {
 
   private resolveSplitLayout(layout?: SplitLayout): {
     headerHeight: number;
-    leftWidth: number;
-    rightWidth: number;
+    paneWidths: number[];
     key: string;
   } {
     const headerHeight = Math.max(40, Math.min(DISPLAY_H - 80, layout?.headerHeight ?? SPLIT_HEADER.h));
+
+    if (layout?.paneWidths && layout.paneWidths.length > 0) {
+      return { headerHeight, paneWidths: layout.paneWidths, key: `${headerHeight}:${layout.paneWidths.join(',')}` };
+    }
+
+    // Legacy 2-pane mode
     const requestedLeft = layout?.leftWidth ?? (layout?.rightWidth ? DISPLAY_W - layout.rightWidth : SPLIT_LEFT.w);
-    const leftWidth = Math.max(180, Math.min(DISPLAY_W - 180, requestedLeft));
+    const leftWidth = Math.max(100, Math.min(DISPLAY_W - 100, requestedLeft));
     const rightWidth = DISPLAY_W - leftWidth;
-    return {
-      headerHeight,
-      leftWidth,
-      rightWidth,
-      key: `${headerHeight}:${leftWidth}`,
-    };
+    return { headerHeight, paneWidths: [leftWidth, rightWidth], key: `${headerHeight}:${leftWidth}` };
   }
 
-  async showSplitPage(header: string, left: string, right: string, layout?: SplitLayout): Promise<void> {
+  /**
+   * Show a split page with a header + N panes.
+   * Backwards-compatible: (header, left, right, layout?) still works.
+   * N-pane: (header, panes[], layout?) where layout.paneWidths defines widths.
+   */
+  async showSplitPage(header: string, leftOrPanes: string | string[], rightOrLayout?: string | SplitLayout, layout?: SplitLayout): Promise<void> {
     if (!this._pageReady) return;
-    const resolved = this.resolveSplitLayout(layout);
+
+    let panes: string[];
+    let resolvedLayout: SplitLayout | undefined;
+    if (Array.isArray(leftOrPanes)) {
+      panes = leftOrPanes;
+      resolvedLayout = rightOrLayout as SplitLayout | undefined;
+    } else {
+      panes = [leftOrPanes, rightOrLayout as string];
+      resolvedLayout = layout;
+    }
+
+    const resolved = this.resolveSplitLayout(resolvedLayout);
+
     if (this.rawBridge) {
       await this.sdk.renderPage(this.chartDummyPage);
+
+      const textObjects: TextContainerProperty[] = [
+        new TextContainerProperty({
+          containerID: 1, containerName: 'overlay',
+          xPosition: 0, yPosition: 0, width: DISPLAY_W, height: DISPLAY_H,
+          borderWidth: 0, borderColor: 0, paddingLength: 0,
+          content: '', isEventCapture: 1,
+        }),
+        new TextContainerProperty({
+          containerID: 6, containerName: 'split-header',
+          xPosition: 0, yPosition: 0, width: DISPLAY_W, height: resolved.headerHeight,
+          borderWidth: 0, borderColor: 0, paddingLength: 6,
+          content: header, isEventCapture: 0,
+        }),
+      ];
+
+      let xOffset = 0;
+      for (let i = 0; i < panes.length; i++) {
+        const w = resolved.paneWidths[i] ?? Math.floor(DISPLAY_W / panes.length);
+        textObjects.push(new TextContainerProperty({
+          containerID: 7 + i, containerName: `split-pane-${i}`,
+          xPosition: xOffset, yPosition: resolved.headerHeight,
+          width: w, height: DISPLAY_H - resolved.headerHeight,
+          borderWidth: 0, borderColor: 0, paddingLength: 6,
+          content: panes[i] ?? '', isEventCapture: 0,
+        }));
+        xOffset += w;
+      }
+
       await this.rawBridge.rebuildPageContainer(
         new RebuildPageContainer({
-          containerTotalNum: 4,
-          textObject: [
-            new TextContainerProperty({
-              containerID: 1, containerName: 'overlay',
-              xPosition: 0, yPosition: 0, width: DISPLAY_W, height: DISPLAY_H,
-              borderWidth: 0, borderColor: 0, paddingLength: 0,
-              content: '', isEventCapture: 1,
-            }),
-            new TextContainerProperty({
-              containerID: 6, containerName: 'split-header',
-              xPosition: 0, yPosition: 0, width: DISPLAY_W, height: resolved.headerHeight,
-              borderWidth: 0, borderColor: 0, paddingLength: 0,
-              content: header, isEventCapture: 0,
-            }),
-            new TextContainerProperty({
-              containerID: 7, containerName: 'split-left',
-              xPosition: 0, yPosition: resolved.headerHeight, width: resolved.leftWidth, height: DISPLAY_H - resolved.headerHeight,
-              borderWidth: 0, borderColor: 0, paddingLength: 6,
-              content: left, isEventCapture: 0,
-            }),
-            new TextContainerProperty({
-              containerID: 8, containerName: 'split-right',
-              xPosition: resolved.leftWidth, yPosition: resolved.headerHeight, width: resolved.rightWidth, height: DISPLAY_H - resolved.headerHeight,
-              borderWidth: 0, borderColor: 0, paddingLength: 6,
-              content: right, isEventCapture: 0,
-            }),
-          ],
+          containerTotalNum: textObjects.length,
+          textObject: textObjects,
           imageObject: [],
         }),
       );
@@ -245,57 +265,71 @@ export class EvenHubBridge {
       this._currentMode = 'split';
       return;
     }
+
+    // Fallback SDK mode (2-pane only)
     this.splitHeader.setPosition((p) => p.setX(0).setY(0));
     this.splitHeader.setSize((s) => s.setWidth(DISPLAY_W).setHeight(resolved.headerHeight));
     this.splitHeader.setBorder((b) => b.setWidth(0).setColor('0').setRadius(0));
     this.splitLeft.setPosition((p) => p.setX(0).setY(resolved.headerHeight));
-    this.splitLeft.setSize((s) => s.setWidth(resolved.leftWidth).setHeight(DISPLAY_H - resolved.headerHeight));
+    this.splitLeft.setSize((s) => s.setWidth(resolved.paneWidths[0] ?? SPLIT_LEFT.w).setHeight(DISPLAY_H - resolved.headerHeight));
     this.splitLeft.setBorder((b) => b.setWidth(0).setColor('0').setRadius(0));
-    this.splitRight.setPosition((p) => p.setX(resolved.leftWidth).setY(resolved.headerHeight));
-    this.splitRight.setSize((s) => s.setWidth(resolved.rightWidth).setHeight(DISPLAY_H - resolved.headerHeight));
+    this.splitRight.setPosition((p) => p.setX(resolved.paneWidths[0] ?? SPLIT_LEFT.w).setY(resolved.headerHeight));
+    this.splitRight.setSize((s) => s.setWidth(resolved.paneWidths[1] ?? SPLIT_RIGHT.w).setHeight(DISPLAY_H - resolved.headerHeight));
     this.splitRight.setBorder((b) => b.setWidth(0).setColor('0').setRadius(0));
     this.splitHeader.setContent(header);
-    this.splitLeft.setContent(left);
-    this.splitRight.setContent(right);
+    this.splitLeft.setContent(panes[0] ?? '');
+    this.splitRight.setContent(panes[1] ?? '');
     notifyTextUpdate();
     await this.sdk.renderPage(this.splitPage);
     this._currentMode = 'split';
   }
 
-  async updateSplitPage(header: string, left: string, right: string, layout?: SplitLayout): Promise<void> {
+  async updateSplitPage(header: string, leftOrPanes: string | string[], rightOrLayout?: string | SplitLayout, layout?: SplitLayout): Promise<void> {
     if (!this._pageReady) return;
+
+    let panes: string[];
+    let resolvedLayout: SplitLayout | undefined;
+    if (Array.isArray(leftOrPanes)) {
+      panes = leftOrPanes;
+      resolvedLayout = rightOrLayout as SplitLayout | undefined;
+    } else {
+      panes = [leftOrPanes, rightOrLayout as string];
+      resolvedLayout = layout;
+    }
+
     if (this.rawBridge) {
-      const resolved = this.resolveSplitLayout(layout);
+      const resolved = this.resolveSplitLayout(resolvedLayout);
       if (this._currentMode !== 'split' || this.lastSplitLayoutKey !== resolved.key) {
-        await this.showSplitPage(header, left, right, layout);
+        await this.showSplitPage(header, leftOrPanes, rightOrLayout, layout);
         return;
       }
       notifyTextUpdate();
-      await Promise.all([
+      const upgrades: Promise<boolean>[] = [
         this.rawBridge.textContainerUpgrade(
           new TextContainerUpgrade({
             containerID: 6, containerName: 'split-header',
             contentOffset: 0, contentLength: 2000, content: header,
           }),
         ),
-        this.rawBridge.textContainerUpgrade(
-          new TextContainerUpgrade({
-            containerID: 7, containerName: 'split-left',
-            contentOffset: 0, contentLength: 2000, content: left,
-          }),
-        ),
-        this.rawBridge.textContainerUpgrade(
-          new TextContainerUpgrade({
-            containerID: 8, containerName: 'split-right',
-            contentOffset: 0, contentLength: 2000, content: right,
-          }),
-        ),
-      ]);
+      ];
+      for (let i = 0; i < panes.length; i++) {
+        upgrades.push(
+          this.rawBridge.textContainerUpgrade(
+            new TextContainerUpgrade({
+              containerID: 7 + i, containerName: `split-pane-${i}`,
+              contentOffset: 0, contentLength: 2000, content: panes[i] ?? '',
+            }),
+          ),
+        );
+      }
+      await Promise.all(upgrades);
       return;
     }
+
+    // Fallback SDK mode (2-pane only)
     this.splitHeader.setContent(header);
-    this.splitLeft.setContent(left);
-    this.splitRight.setContent(right);
+    this.splitLeft.setContent(panes[0] ?? '');
+    this.splitRight.setContent(panes[1] ?? '');
     notifyTextUpdate();
     await this.sdk.renderPage(this.splitPage);
   }
@@ -404,14 +438,20 @@ export class EvenHubBridge {
     await this.sdk.renderPage(this.chartDummyPage);
     await this.rawBridge.rebuildPageContainer(
       new RebuildPageContainer({
-        containerTotalNum: 4,
+        containerTotalNum: 2 + IMAGE_TILES.length,
         textObject: [
+          new TextContainerProperty({
+            containerID: 1, containerName: 'overlay',
+            xPosition: 0, yPosition: 0, width: DISPLAY_W, height: DISPLAY_H,
+            borderWidth: 0, borderColor: 0, paddingLength: 0,
+            content: '', isEventCapture: 1,
+          }),
           new TextContainerProperty({
             containerID: CHART_TEXT.id, containerName: CHART_TEXT.name,
             xPosition: CHART_TEXT.x, yPosition: CHART_TEXT.y,
             width: CHART_TEXT.w, height: CHART_TEXT.h,
-            borderWidth: 0, borderColor: 0, paddingLength: 0,
-            content: topText, isEventCapture: 1,
+            borderWidth: 0, borderColor: 0, paddingLength: 6,
+            content: topText, isEventCapture: 0,
           }),
         ],
         imageObject: IMAGE_TILES.map((t) =>

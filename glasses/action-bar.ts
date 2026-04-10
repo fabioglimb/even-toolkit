@@ -28,11 +28,11 @@ export function buildActionBar(
   return buttons.map((name, i) => {
     if (activeIdx === i) {
       // Active/confirmed button: filled triangles
-      return `\u25B6${name}\u25C0`;
+      return `\u25B6${name}`;
     }
     if (i === selectedIndex) {
       // Scroll highlight on a non-active button: empty triangles
-      return `\u25B7${name}\u25C1`;
+      return `\u25B7${name}`;
     }
     return ` ${name} `;
   }).join(' ');
@@ -48,7 +48,7 @@ export function buildStaticActionBar(
 ): string {
   return buttons.map((name, i) => {
     if (i === selectedIndex) {
-      return `\u25B6${name}\u25C0`;
+      return `\u25B6${name}`;
     }
     return ` ${name} `;
   }).join(' ');

@@ -6,7 +6,7 @@
  */
 
 const BLOCK_FULL = '\u2588';     // █  (filled portion)
-const LINE_THIN = '\u2500';      // ─
+const LINE_HEAVY = '\u2501';     // ━  (empty portion)
 const ICON_PLAY = '\u25B6';      // ▶
 const ICON_PAUSE = '\u2588';     // █  (single block for paused)
 const ICON_DONE = 'OK';
@@ -40,7 +40,7 @@ export function renderTimerLines(timer: TimerState, barWidth = 18, frameWidth = 
   if (total === 0 && remaining === 0) {
     return [
       `${ICON_IDLE}  00:00`,
-      LINE_THIN.repeat(barWidth),
+      LINE_HEAVY.repeat(barWidth),
     ];
   }
 
@@ -56,7 +56,7 @@ export function renderTimerLines(timer: TimerState, barWidth = 18, frameWidth = 
   const progress = total > 0 ? (total - remaining) / total : 0;
   const filled = Math.round(progress * barWidth);
   const empty = barWidth - filled;
-  const bar = BLOCK_FULL.repeat(filled) + LINE_THIN.repeat(empty);
+  const bar = BLOCK_FULL.repeat(filled) + LINE_HEAVY.repeat(empty);
 
   return [
     `${icon}  ${time}`,

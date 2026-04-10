@@ -1,6 +1,6 @@
 {
   "name": "even-toolkit",
-  "version": "1.6.5",
+  "version": "1.7.0",
   "bin": {
     "even-toolkit": "./bin/create.js"
   },
@@ -20,6 +20,14 @@
     "./bridge": {
       "types": "./dist/glasses/bridge.d.ts",
       "import": "./dist/glasses/bridge.js"
+    },
+    "./sdk-wrapper": {
+      "types": "./dist/glasses/sdk-wrapper.d.ts",
+      "import": "./dist/glasses/sdk-wrapper.js"
+    },
+    "./box-drawing": {
+      "types": "./dist/glasses/box-drawing.d.ts",
+      "import": "./dist/glasses/box-drawing.js"
     },
     "./useGlasses": {
       "types": "./dist/glasses/useGlasses.d.ts",
@@ -382,7 +390,6 @@
   },
   "peerDependencies": {
     "@evenrealities/even_hub_sdk": ">=0.0.9",
-    "@jappyjan/even-better-sdk": ">=0.0.11",
     "class-variance-authority": ">=0.7.0",
     "clsx": ">=2.0.0",
     "react": ">=18.0.0",
@@ -408,7 +415,6 @@
   },
   "devDependencies": {
     "@evenrealities/even_hub_sdk": "^0.0.9",
-    "@jappyjan/even-better-sdk": "^0.0.11",
     "@types/react": "^19.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

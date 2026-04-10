@@ -83,8 +83,8 @@ export const CHART_CANVAS_H = 100;
 // ── Chart layout text container (below images) ──
 
 export const CHART_TEXT = {
-  id: 1,
-  name: 'main',
+  id: 5,
+  name: 'chart-text',
   x: 0,
   y: G2_IMAGE_MAX_H,
   w: DISPLAY_W,

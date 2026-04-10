@@ -1,5 +1,7 @@
 # even-toolkit
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/f3tch)
+
 Design system & component library for **Even Realities G2** smart glasses apps.
 
 55+ web components, 191 pixel-art icons, glasses SDK bridge with per-screen architecture, speech-to-text module, light/dark themes, and design tokens — all following the Even Realities 2025 UIUX Design Guidelines.
@@ -407,6 +409,12 @@ export function App() {
 | **EvenKitchen** | Recipe management & step-by-step cooking | [even-kitchen.vercel.app](https://even-kitchen.vercel.app) |
 | **EvenWorkout** | Workout tracking with rest timers | [even-workout.vercel.app](https://even-workout.vercel.app) |
 | **EvenBrowser** | Text-based web browsing on G2 glasses | [even-browser.vercel.app](https://even-browser.vercel.app) |
+
+## Support
+
+If you find this useful, consider supporting the project:
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/f3tch)
 
 ## License
 

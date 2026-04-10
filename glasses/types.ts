@@ -59,19 +59,19 @@ export interface ColumnData {
 export interface SplitLayout {
   /** Full-width header height in pixels */
   headerHeight?: number;
-  /** Left pane width in pixels */
+  /** Left pane width in pixels (2-pane mode) */
   leftWidth?: number;
-  /** Right pane width in pixels; defaults to remaining width */
+  /** Right pane width in pixels; defaults to remaining width (2-pane mode) */
   rightWidth?: number;
+  /** Pixel widths for N-pane mode (overrides leftWidth/rightWidth) */
+  paneWidths?: number[];
 }
 
 export interface SplitData {
   /** Full-width top header block */
   header: string;
-  /** Bottom-left pane */
-  left: string;
-  /** Bottom-right pane */
-  right: string;
+  /** Content panes (N-pane mode) */
+  panes: string[];
   /** Optional per-screen container sizing */
   layout?: SplitLayout;
 }
