@@ -4,3 +4,6 @@ dist
 
 CLAUDE.md
 .claude/
+
+.env
+.env.*

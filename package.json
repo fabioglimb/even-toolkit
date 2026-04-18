@@ -1,6 +1,6 @@
 {
   "name": "even-toolkit",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "bin": {
     "even-toolkit": "./bin/create.js"
   },
@@ -389,7 +389,7 @@
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "@evenrealities/even_hub_sdk": ">=0.0.9",
+    "@evenrealities/even_hub_sdk": ">=0.0.10",
     "class-variance-authority": ">=0.7.0",
     "clsx": ">=2.0.0",
     "react": ">=18.0.0",
@@ -414,7 +414,7 @@
     }
   },
   "devDependencies": {
-    "@evenrealities/even_hub_sdk": "^0.0.9",
+    "@evenrealities/even_hub_sdk": "^0.0.10",
     "@types/react": "^19.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
