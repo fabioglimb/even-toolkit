@@ -18,6 +18,12 @@ interface DrawerShellProps {
   getBackPath?: (pathname: string) => string;
   backIcon?: ReactNode;
   className?: string;
+  /**
+   * Always-visible content for the header right slot. Rendered alongside any
+   * per-screen `right` override set via `useDrawerHeader`. Useful for global
+   * widgets like a clock that should appear on every screen.
+   */
+  defaultRight?: ReactNode;
 }
 
 const DEFAULT_BACK_ICON = (
@@ -39,6 +45,7 @@ function DrawerShell({
   getBackPath,
   backIcon = DEFAULT_BACK_ICON,
   className,
+  defaultRight,
 }: DrawerShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -103,7 +110,13 @@ function DrawerShell({
       )
     : defaultLeft);
 
-  const headerRight = headerOverride?.right ?? undefined;
+  const overrideRight = headerOverride?.right;
+  const headerRight = (overrideRight || defaultRight) ? (
+    <div className="flex items-center gap-3">
+      {overrideRight}
+      {defaultRight}
+    </div>
+  ) : undefined;
   const headerBelow = headerOverride?.below ?? undefined;
   const headerFooter = headerOverride?.footer ?? undefined;
 

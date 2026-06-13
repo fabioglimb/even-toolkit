@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.3
+
+Unreleased.
+
+No breaking changes.
+
+### Added
+
+- `even-toolkit/pretext` deep export for pixel-accurate G2 text measurement, truncation, and wrapped-height prediction via `@evenrealities/pretext`
+- `DrawerShell` `defaultRight` prop — always-visible header right-slot content (e.g. a clock) rendered alongside any per-screen `useDrawerHeader` `right` override
+
 ## 1.6.3
 
 Released: 2026-04-03

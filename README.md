@@ -4,7 +4,7 @@
 
 Design system & component library for **Even Realities G2** smart glasses apps.
 
-55+ web components, 191 pixel-art icons, glasses SDK bridge with per-screen architecture, speech-to-text module, light/dark themes, and design tokens — all following the Even Realities 2025 UIUX Design Guidelines.
+55+ web components, 191 pixel-art icons, glasses SDK bridge with per-screen architecture, pixel-accurate G2 text measurement, speech-to-text module, light/dark themes, and design tokens — all following the Even Realities 2025 UIUX Design Guidelines.
 
 **[Live Demo → even-demo.vercel.app](https://even-demo.vercel.app)**
 
@@ -211,6 +211,7 @@ import { EvenHubBridge } from 'even-toolkit/bridge';
 import { line, separator, glassHeader } from 'even-toolkit/types';
 import { buildActionBar, buildStaticActionBar } from 'even-toolkit/action-bar';
 import { truncate, applyScrollIndicators } from 'even-toolkit/text-utils';
+import { measureGlassText, truncateGlassText } from 'even-toolkit/pretext';
 import { renderTimerLines } from 'even-toolkit/timer-display';
 import { formatGlassHeader, formatGlassListRow } from 'even-toolkit/glass-format';
 import { renderChatBlocks, renderChatReadMode } from 'even-toolkit/glass-chat-display';
@@ -221,7 +222,33 @@ import { createSplash, TILE_PRESETS } from 'even-toolkit/splash';
 
 **Input:** action-map (tap/double-tap/scroll events), gestures (debounce + post-tap scroll suppression), keyboard bindings
 
-**Utilities:** splash screens, PNG encoding, text cleaning, pagination, keep-alive, chat block formatters, reusable glass text formatting helpers
+**Utilities:** pixel-accurate text measurement, splash screens, PNG encoding, text cleaning, pagination, keep-alive, chat block formatters, reusable glass text formatting helpers
+
+### Pixel-Accurate Text Measurement (`pretext`)
+
+Use `even-toolkit/pretext` when character-count wrapping is not precise enough. It wraps `@evenrealities/pretext` and uses the same LVGL font metrics as Even Hub for G2 text width, truncation, and wrapped-height prediction.
+
+```ts
+import {
+  getTextWidth,
+  measureGlassText,
+  truncateGlassText,
+  G2_TEXT_MAX_WIDTH,
+} from 'even-toolkit/pretext';
+
+const title = truncateGlassText('A long glasses title', { width: G2_TEXT_MAX_WIDTH, paddingX: 12 });
+
+const measured = measureGlassText('The quick brown fox jumps over the lazy dog', {
+  width: 300,
+  paddingX: 8,
+  borderWidth: 2,
+});
+
+console.log(measured.lineCount, measured.height, measured.maxLineWidth);
+console.log(getTextWidth(title));
+```
+
+The lower-level exports `measureTextWrap`, `pxTruncate`, and `getAdvW` are also available from the same module. Existing `paginate-text` and `text-utils` helpers remain character-based for backward compatibility.
 
 ---
 
