@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { DisplayData, GlassAction, GlassNavState, ColumnData, SplitData } from './types';
-import { renderTextPageLines, GLASSES_TEXT_PREFIX, GLASSES_SEPARATOR_WIDTH } from './types';
+import { renderTextPageLines, GLASSES_TEXT_PREFIX } from './types';
+import { getTextWidth, G2_TEXT_MAX_WIDTH } from './pretext';
 
 /** Current wall-clock time as HH:MM (24h) for the glasses header. */
 function currentClock(): string {
@@ -9,21 +10,35 @@ function currentClock(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** Right-align `right` (e.g. a clock) into a `width`-char field, truncating `content` if needed. */
-function rightAlignInto(content: string, right: string, width: number): string {
-  const gap = 1;
-  const maxContent = Math.max(0, width - right.length - gap);
-  const trimmed = content.length > maxContent ? content.slice(0, maxContent) : content;
-  const pad = Math.max(gap, width - trimmed.length - right.length);
-  return trimmed + ' '.repeat(pad) + right;
+/**
+ * Append a pixel-right-aligned clock to a full header line.
+ *
+ * Uses LVGL font metrics (pretext) to push the clock to the true right edge of
+ * the 576px container. Returns `null` when there isn't room after the existing
+ * content + a one-space gap — in that case the caller leaves the header
+ * untouched, so a dense header (e.g. exercise + action buttons) keeps its text
+ * rather than getting truncated.
+ */
+function appendClock(line: string, clock: string): string | null {
+  const spacePx = getTextWidth(' ') || 1;
+  const linePx = getTextWidth(line);
+  const clockPx = getTextWidth(clock);
+  if (linePx + spacePx + clockPx > G2_TEXT_MAX_WIDTH) return null;
+  const padPx = G2_TEXT_MAX_WIDTH - linePx - clockPx;
+  // floor (not round) so the line never exceeds the container and wraps.
+  const spaces = Math.max(1, Math.floor(padPx / spacePx));
+  return line + ' '.repeat(spaces) + clock;
 }
 
 /** Inject a right-aligned clock into the first non-separator line of a text page. */
 function injectClockText(data: DisplayData, clock: string): DisplayData {
   const idx = data.lines.findIndex((l) => l.style !== 'separator');
   if (idx < 0) return data;
+  // The renderer prepends GLASSES_TEXT_PREFIX, so measure the prefixed line.
+  const aligned = appendClock(GLASSES_TEXT_PREFIX + data.lines[idx].text, clock);
+  if (aligned == null) return data;
   const lines = data.lines.slice();
-  lines[idx] = { ...lines[idx], text: rightAlignInto(lines[idx].text, clock, GLASSES_SEPARATOR_WIDTH) };
+  lines[idx] = { ...lines[idx], text: aligned.slice(GLASSES_TEXT_PREFIX.length) };
   return { ...data, lines };
 }
 
@@ -31,11 +46,9 @@ function injectClockText(data: DisplayData, clock: string): DisplayData {
 function injectClockSplit(header: string, clock: string): string {
   const lines = header.split('\n');
   if (!lines.length || !lines[0]) return header;
-  const sep = lines.find((l) => l.includes('─'));
-  const width = sep ? Math.max(GLASSES_SEPARATOR_WIDTH, sep.length - GLASSES_TEXT_PREFIX.length) : GLASSES_SEPARATOR_WIDTH;
-  const hasPrefix = lines[0].startsWith(GLASSES_TEXT_PREFIX);
-  const content = hasPrefix ? lines[0].slice(GLASSES_TEXT_PREFIX.length) : lines[0];
-  lines[0] = (hasPrefix ? GLASSES_TEXT_PREFIX : '') + rightAlignInto(content, clock, width);
+  const aligned = appendClock(lines[0], clock);
+  if (aligned == null) return header;
+  lines[0] = aligned;
   return lines.join('\n');
 }
 import { EvenHubBridge, type ColumnConfig } from './bridge';
