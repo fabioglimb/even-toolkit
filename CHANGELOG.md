@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.4
+
+Unreleased.
+
+No breaking changes.
+
+### Added
+
+- `error?: boolean | string` prop on `Input`, `Select`, and `Textarea` — renders a red inset ring (and `aria-invalid`) when truthy, plus an inline error message below the field when a string is passed. Enables consistent form-validation feedback across apps.
+
 ## 1.7.3
 
 Unreleased.

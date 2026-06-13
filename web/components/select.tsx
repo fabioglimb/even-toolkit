@@ -15,12 +15,15 @@ interface SelectProps {
   className?: string;
   disabled?: boolean;
   dropdownPosition?: 'top' | 'bottom';
+  /** Invalid state. `true` shows a red ring; a string also renders the message below. */
+  error?: boolean | string;
 }
 
 /**
  * Custom dropdown — no native <select>. Fully styled, no browser arrow issues.
  */
-function Select({ value, options, onValueChange, placeholder, className, disabled, dropdownPosition = 'bottom' }: SelectProps) {
+function Select({ value, options, onValueChange, placeholder, className, disabled, dropdownPosition = 'bottom', error }: SelectProps) {
+  const hasError = Boolean(error);
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -74,9 +77,11 @@ function Select({ value, options, onValueChange, placeholder, className, disable
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
+        aria-invalid={hasError || undefined}
         className={cn(
           'h-9 w-full bg-input-bg text-text rounded-[6px] pl-4 pr-8 text-[17px] tracking-[-0.17px] text-left cursor-pointer border-none flex items-center',
           'transition-colors hover:bg-surface-light',
+          hasError && 'ring-1 ring-inset ring-negative',
           disabled && 'opacity-50 cursor-default',
         )}
       >
@@ -124,6 +129,9 @@ function Select({ value, options, onValueChange, placeholder, className, disable
           ))}
         </div>,
         document.body,
+      )}
+      {typeof error === 'string' && error && (
+        <p className="mt-1 text-[11px] tracking-[-0.11px] text-negative">{error}</p>
       )}
     </div>
   );
