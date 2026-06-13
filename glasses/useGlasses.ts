@@ -1,7 +1,43 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { DisplayData, GlassAction, GlassNavState, ColumnData, SplitData } from './types';
-import { renderTextPageLines } from './types';
+import { renderTextPageLines, GLASSES_TEXT_PREFIX, GLASSES_SEPARATOR_WIDTH } from './types';
+
+/** Current wall-clock time as HH:MM (24h) for the glasses header. */
+function currentClock(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Right-align `right` (e.g. a clock) into a `width`-char field, truncating `content` if needed. */
+function rightAlignInto(content: string, right: string, width: number): string {
+  const gap = 1;
+  const maxContent = Math.max(0, width - right.length - gap);
+  const trimmed = content.length > maxContent ? content.slice(0, maxContent) : content;
+  const pad = Math.max(gap, width - trimmed.length - right.length);
+  return trimmed + ' '.repeat(pad) + right;
+}
+
+/** Inject a right-aligned clock into the first non-separator line of a text page. */
+function injectClockText(data: DisplayData, clock: string): DisplayData {
+  const idx = data.lines.findIndex((l) => l.style !== 'separator');
+  if (idx < 0) return data;
+  const lines = data.lines.slice();
+  lines[idx] = { ...lines[idx], text: rightAlignInto(lines[idx].text, clock, GLASSES_SEPARATOR_WIDTH) };
+  return { ...data, lines };
+}
+
+/** Inject a right-aligned clock into the first line of a (pre-rendered) split header. */
+function injectClockSplit(header: string, clock: string): string {
+  const lines = header.split('\n');
+  if (!lines.length || !lines[0]) return header;
+  const sep = lines.find((l) => l.includes('─'));
+  const width = sep ? Math.max(GLASSES_SEPARATOR_WIDTH, sep.length - GLASSES_TEXT_PREFIX.length) : GLASSES_SEPARATOR_WIDTH;
+  const hasPrefix = lines[0].startsWith(GLASSES_TEXT_PREFIX);
+  const content = hasPrefix ? lines[0].slice(GLASSES_TEXT_PREFIX.length) : lines[0];
+  lines[0] = (hasPrefix ? GLASSES_TEXT_PREFIX : '') + rightAlignInto(content, clock, width);
+  return lines.join('\n');
+}
 import { EvenHubBridge, type ColumnConfig } from './bridge';
 import { mapGlassEvent } from './action-map';
 import { bindKeyboard } from './keyboard';
@@ -35,6 +71,8 @@ export interface UseGlassesConfig<S> {
   shutdownOnHomeBack?: boolean;
   /** Native shutdown mode. 1 = show foreground exit layer, 0 = exit immediately. Default: 1 */
   shutdownMode?: 0 | 1;
+  /** When true, shows the current time (HH:MM) right-aligned in every glass-screen header. */
+  headerClock?: boolean;
   /** Column layout config — default: 3 equal columns across 576px */
   columns?: ColumnConfig[];
   /** Home page image tiles — sent when getPageMode returns 'home'. Create with createSplash().getTiles() */
@@ -55,6 +93,7 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
   const hubRef = useRef<EvenHubBridge | null>(null);
   const navRef = useRef<GlassNavState>({ highlightedIndex: 0, screen: '' });
   const lastSnapshotRef = useRef<S | null>(null);
+  const lastClockRef = useRef('');
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
 
@@ -82,6 +121,7 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
       const nav = navRef.current;
       const getMode = configRef.current.getPageMode ?? (() => 'text');
       const mode = getMode(nav.screen);
+      const clock = configRef.current.headerClock ? currentClock() : '';
 
       if (mode === 'columns' && configRef.current.toColumns) {
         const cols = configRef.current.toColumns(snapshot, nav);
@@ -92,13 +132,15 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
         }
       } else if (mode === 'split' && configRef.current.toSplit) {
         const split = configRef.current.toSplit(snapshot, nav);
+        const header = clock ? injectClockSplit(split.header, clock) : split.header;
         if (hub.currentMode === 'split') {
-          await hub.updateSplitPage(split.header, split.panes, split.layout);
+          await hub.updateSplitPage(header, split.panes, split.layout);
         } else {
-          await hub.showSplitPage(split.header, split.panes, split.layout);
+          await hub.showSplitPage(header, split.panes, split.layout);
         }
       } else {
-        const data = configRef.current.toDisplayData(snapshot, nav);
+        const rawData = configRef.current.toDisplayData(snapshot, nav);
+        const data = clock ? injectClockText(rawData, clock) : rawData;
         const text = renderTextPageLines(data.lines);
 
         const tiles = mode === 'home' ? configRef.current.homeImageTiles : undefined;
@@ -249,8 +291,11 @@ export function useGlasses<S>(config: UseGlassesConfig<S>): void {
         flushDisplay();
         pollTimer = setInterval(() => {
           const snapshot = configRef.current.getSnapshot();
-          if (snapshot !== lastSnapshotRef.current) {
+          // Re-render on state change, or when the header clock's minute rolls over.
+          const clockChanged = !!configRef.current.headerClock && currentClock() !== lastClockRef.current;
+          if (snapshot !== lastSnapshotRef.current || clockChanged) {
             lastSnapshotRef.current = snapshot;
+            if (configRef.current.headerClock) lastClockRef.current = currentClock();
             flushDisplay();
           }
         }, 100);
