@@ -9,22 +9,26 @@ interface CheckboxProps {
 }
 
 function Checkbox({ checked, onChange, label, disabled, className }: CheckboxProps) {
+  // Single <button> is the whole control. A previous version nested this button
+  // inside a <label>; since a button is a labelable element, a direct click on
+  // the box dispatched the event twice (once directly, once forwarded by the
+  // label), which broke deselecting. One button = exactly one click.
   return (
-    <label
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
       className={cn(
-        'inline-flex items-center gap-3 cursor-pointer select-none',
+        'inline-flex items-center gap-3 cursor-pointer select-none text-left',
         disabled && 'opacity-50 pointer-events-none',
         className,
       )}
     >
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
+      <span
         className={cn(
-          'relative shrink-0 w-5 h-5 rounded-[4px] transition-colors cursor-pointer',
+          'relative shrink-0 w-5 h-5 rounded-[4px] transition-colors',
           checked ? 'bg-accent' : 'bg-surface-lighter',
         )}
       >
@@ -40,11 +44,11 @@ function Checkbox({ checked, onChange, label, disabled, className }: CheckboxPro
             <rect x={8} y={3} width={2} height={2} fill="var(--color-text-highlight)" />
           </svg>
         )}
-      </button>
+      </span>
       {label && (
         <span className="text-[15px] tracking-[-0.15px] text-text">{label}</span>
       )}
-    </label>
+    </button>
   );
 }
 

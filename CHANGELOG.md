@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.5
+
+Unreleased.
+
+No breaking changes.
+
+### Fixed
+
+- `Checkbox` could not be deselected by clicking the box itself (only the label text worked). The box `<button>` was nested inside a `<label>`, so a direct click dispatched twice. The component is now a single `<button>`, so one click toggles once.
+
 ## 1.7.4
 
 Unreleased.
