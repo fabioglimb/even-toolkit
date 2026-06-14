@@ -76,17 +76,36 @@ function ImageViewer({ images, currentIndex, onClose, onNavigate, className }: I
     return () => document.removeEventListener('keydown', handler);
   }, [currentIndex, hasPrev, hasNext, onClose, onNavigate]);
 
+  // Swipe (touch drag) navigation
+  const swipeStartX = React.useRef<number | null>(null);
+  const SWIPE_THRESHOLD = 40;
+  const onTouchStart = (e: React.TouchEvent) => {
+    swipeStartX.current = e.touches[0]?.clientX ?? null;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (swipeStartX.current === null) return;
+    const dx = (e.changedTouches[0]?.clientX ?? swipeStartX.current) - swipeStartX.current;
+    swipeStartX.current = null;
+    if (dx > SWIPE_THRESHOLD && hasPrev) onNavigate(currentIndex - 1);
+    else if (dx < -SWIPE_THRESHOLD && hasNext) onNavigate(currentIndex + 1);
+  };
+
   return (
     <div className={cn('fixed inset-0 z-50 flex items-center justify-center', className)}>
       {/* Overlay */}
       <div className="absolute inset-0 bg-overlay" onClick={onClose} />
 
       {/* Image */}
-      <div className="relative z-10 max-w-[90vw] max-h-[80vh]">
+      <div
+        className="relative z-10 max-w-[90vw] max-h-[80vh] touch-pan-y"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         <img
           src={image.src}
           alt={image.alt ?? ''}
-          className="max-w-full max-h-[80vh] object-contain rounded-[6px]"
+          className="max-w-full max-h-[80vh] object-contain rounded-[6px] select-none"
+          draggable={false}
         />
       </div>
 

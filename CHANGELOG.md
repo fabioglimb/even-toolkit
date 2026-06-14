@@ -2,13 +2,14 @@
 
 ## 1.7.6
 
-Unreleased.
+Released: 2026-06-15
 
 No breaking changes.
 
 ### Added
 
 - `useGlasses({ headerClock: true })` — shows the current time (HH:MM) right-aligned in the header of every glass screen (text + split modes), refreshed each minute. Centralizes the on-glasses clock so apps don't render their own.
+- `ImageViewer` now supports touch-swipe navigation (drag left/right) in addition to the arrow buttons and keyboard.
 
 ## 1.7.5
 

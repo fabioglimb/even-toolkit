@@ -2,7 +2,15 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { DisplayData, GlassAction, GlassNavState, ColumnData, SplitData } from './types';
 import { renderTextPageLines, GLASSES_TEXT_PREFIX } from './types';
-import { getTextWidth, G2_TEXT_MAX_WIDTH } from './pretext';
+import { getTextWidth } from './pretext';
+
+/**
+ * Effective right edge (px) for the header clock. The G2 header renders in a
+ * larger font than pretext's body-font metrics measure, so the usable header
+ * width is well under the full 576px container — using 576 pushed the clock
+ * onto a second line. This is the tuning knob: lower = clock further left.
+ */
+const HEADER_CLOCK_WIDTH = 555;
 
 /** Current wall-clock time as HH:MM (24h) for the glasses header. */
 function currentClock(): string {
@@ -23,8 +31,8 @@ function appendClock(line: string, clock: string): string | null {
   const spacePx = getTextWidth(' ') || 1;
   const linePx = getTextWidth(line);
   const clockPx = getTextWidth(clock);
-  if (linePx + spacePx + clockPx > G2_TEXT_MAX_WIDTH) return null;
-  const padPx = G2_TEXT_MAX_WIDTH - linePx - clockPx;
+  if (linePx + spacePx + clockPx > HEADER_CLOCK_WIDTH) return null;
+  const padPx = HEADER_CLOCK_WIDTH - linePx - clockPx;
   // floor (not round) so the line never exceeds the container and wraps.
   const spaces = Math.max(1, Math.floor(padPx / spacePx));
   return line + ' '.repeat(spaces) + clock;
