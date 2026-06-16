@@ -36,7 +36,7 @@ import { Button, Card, NavBar, ListItem, Toggle, AppShell } from 'even-toolkit/w
 
 **Primitives:** Button, Card, Badge, Input, Textarea, Select, MultiSelect, Checkbox, RadioGroup, Slider, InputGroup, Skeleton, Progress, StatusDot, Pill, Toggle, SegmentedControl, Table, Kbd, Divider
 
-**Layout:** AppShell, Page, NavBar, NavHeader, SideDrawer, DrawerShell, DrawerTrigger, ScreenHeader, SectionHeader, SettingsGroup, CategoryFilter, ListItem (swipe-to-delete), SearchBar, Tag, TagCarousel, TagCard, PagedCarousel, CardCarousel, SliderIndicator, PageIndicator, StepIndicator, Timeline, StatGrid, StatusProgress
+**Layout:** AppShell, Page, NavBar, NavHeader, SideDrawer, DrawerShell, DrawerTrigger, ScreenHeader, SectionHeader, SettingsGroup, CategoryFilter, ListItem (swipe-to-delete), SwipeToDelete, SearchBar, Tag, TagCarousel, TagCard, PagedCarousel, CardCarousel, SliderIndicator, PageIndicator, StepIndicator, Timeline, StatGrid, StatusProgress
 
 **Feedback:** TimerRing, Dialog, ConfirmDialog, Toast, EmptyState, Loading, BottomSheet, CTAGroup, ScrollPicker, DatePicker, TimePicker, SelectionPicker
 

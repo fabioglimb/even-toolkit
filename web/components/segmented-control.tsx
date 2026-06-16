@@ -17,10 +17,10 @@ function SegmentedControl({ options, value, onValueChange, size = 'default', cla
   return (
     <div
       className={cn(
-        'inline-flex rounded-[6px] bg-surface-lighter p-0.5',
-        size === 'default' && 'h-12',
-        size === 'small' && 'h-9',
-        size === 'xsmall' && 'h-6',
+        'inline-flex items-stretch rounded-[6px] bg-surface-lighter p-0.5',
+        size === 'default' && 'min-h-12',
+        size === 'small' && 'min-h-9',
+        size === 'xsmall' && 'min-h-6',
         className,
       )}
     >
@@ -30,7 +30,7 @@ function SegmentedControl({ options, value, onValueChange, size = 'default', cla
           type="button"
           onClick={() => onValueChange(opt.value)}
           className={cn(
-            'flex-1 px-4 font-normal transition-all cursor-pointer rounded-[4px]',
+            'flex-1 flex items-center justify-center text-center leading-tight px-4 py-1 font-normal transition-all cursor-pointer rounded-[4px]',
             size === 'default' && 'text-[17px] tracking-[-0.17px]',
             size === 'small' && 'text-[15px] tracking-[-0.15px] px-3',
             size === 'xsmall' && 'text-[13px] tracking-[-0.13px] px-2',

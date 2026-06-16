@@ -1,6 +1,6 @@
 {
   "name": "even-toolkit",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "bin": {
     "even-toolkit": "./bin/create.js"
   },

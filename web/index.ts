@@ -76,6 +76,9 @@ export type { CategoryFilterProps } from './components/category-filter';
 export { ListItem } from './components/list-item';
 export type { ListItemProps } from './components/list-item';
 
+export { SwipeToDelete } from './components/swipe-to-delete';
+export type { SwipeToDeleteProps } from './components/swipe-to-delete';
+
 export { SearchBar } from './components/search-bar';
 export type { SearchBarProps } from './components/search-bar';
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.7.7
+
+Released: 2026-06-16
+
+No breaking changes. All additions are backward-compatible (new optional props default to existing behavior).
+
+### Added
+
+- `SwipeToDelete` — wrapper component that reveals a red trash/delete affordance on left-swipe for **arbitrary children** (touch swipe, direction lock, vertical-scroll passthrough, async/loading delete). Use it for rich list cards that can't fit `ListItem`'s title/subtitle model.
+- `Calendar`:
+  - **Drag-to-move events in week view** (previously day-view only), with column→day / offset→time mapping. New `onEventDrop` / `onEventMove` callbacks fire on drop in both day and week views.
+  - `swipeToNavigate` (default `true`) — swipe the calendar body left/right to change the visible month/week/day. Automatically suppressed while an event is being dragged.
+  - Per-render split-pane width overrides via the split `layout` (`leftWidth` / `rightWidth` / `paneWidths`) so consumers can widen a pane without changing the shared defaults.
+  - Full-width Month/Week/Day view switcher; capitalized localized month label (e.g. "Giugno 2026"); centered week-view day header.
+  - Event blocks use `touch-action: pan-y` (a swipe scrolls; drag only on press-and-hold) and native scrolling is blocked during an active drag so vertical drags aren't hijacked. Text selection is disabled across the calendar.
+
+### Fixed
+
+- `SegmentedControl` now grows to contain wrapped labels (min-height instead of a fixed height), so long options (e.g. "In Waiting Room") no longer overflow the control.
+- `ListItem` swipe-to-delete background now uses `rounded-[6px]` to match the rounded row (was square-cornered behind it).
+
 ## 1.7.6
 
 Released: 2026-06-15

@@ -46,7 +46,8 @@ function getWeekDays(date: Date): Date[] {
 }
 
 function formatMonth(d: Date): string {
-  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const label = d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return label.charAt(0).toLocaleUpperCase() + label.slice(1);
 }
 
 function formatTime(d: Date): string {
@@ -90,14 +91,14 @@ function CalendarHeader({ date, view, onViewChange, onPrev, onNext, onToday }: C
         <button type="button" onClick={onToday} className="h-8 px-3 rounded-[6px] bg-surface-light text-[13px] tracking-[-0.13px] text-text-dim hover:text-text cursor-pointer transition-colors shrink-0">
           Today
         </button>
-        <div className="inline-flex rounded-[6px] bg-surface-lighter overflow-visible h-8">
+        <div className="flex flex-1 rounded-[6px] bg-surface-lighter overflow-visible h-8">
           {(['month', 'week', 'day'] as CalendarView[]).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => onViewChange(v)}
               className={cn(
-                'px-3 text-[13px] tracking-[-0.13px] cursor-pointer rounded-[6px] transition-colors capitalize',
+                'flex-1 flex items-center justify-center text-[13px] tracking-[-0.13px] cursor-pointer rounded-[6px] transition-colors capitalize',
                 view === v ? 'bg-surface text-text shadow-sm' : 'text-text-dim hover:text-text',
               )}
             >
@@ -176,29 +177,151 @@ function MonthView({ date, events, onDateClick, onEventClick }: {
 
 // ─── WeekView ───────────────────────────────────────────────────
 
-function WeekView({ date, events, onEventClick }: {
+const WEEK_ROW_HEIGHT_PX = 40;
+const WEEK_MINUTE_THRESHOLD_PX = WEEK_ROW_HEIGHT_PX * (EVENT_DRAG_MINUTE_STEP / 60);
+
+function WeekView({ date, events, onEventClick, onEventMove, onDateChange, onDragStateChange }: {
   date: Date;
   events: CalendarEvent[];
   onEventClick?: (e: CalendarEvent) => void;
+  onEventMove?: (move: CalendarEventMove) => void;
+  onDateChange?: (d: Date) => void;
+  onDragStateChange?: (active: boolean) => void;
 }) {
   const weekDays = getWeekDays(date);
+
+  const [draggingId, setDraggingId] = React.useState<string | null>(null);
+  const [dragOffsetX, setDragOffsetX] = React.useState(0);
+  const [dragOffsetY, setDragOffsetY] = React.useState(0);
+  const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressEventRef = React.useRef<CalendarEvent | null>(null);
+  const startXRef = React.useRef(0);
+  const startYRef = React.useRef(0);
+  const pointerMovedRef = React.useRef(false);
+  // Width of a single day column, measured from the dragged event's cell at press time.
+  const colWidthRef = React.useRef(0);
+
+  const clearDragState = React.useCallback(() => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    pressEventRef.current = null;
+    pointerMovedRef.current = false;
+    colWidthRef.current = 0;
+    setDraggingId(null);
+    setDragOffsetX(0);
+    setDragOffsetY(0);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!draggingId) return;
+    onDragStateChange?.(true);
+    // While a drag is active, block native scrolling so the vertical drag isn't
+    // hijacked by the page scroll. touch-action stays pan-y otherwise, so a
+    // normal (non-drag) swipe on a block still scrolls.
+    const preventScroll = (ev: TouchEvent) => ev.preventDefault();
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => document.removeEventListener('touchmove', preventScroll);
+  }, [draggingId, onDragStateChange]);
+
+  const handlePointerDown = React.useCallback((event: CalendarEvent, clientX: number, clientY: number, target: HTMLElement) => {
+    startXRef.current = clientX;
+    startYRef.current = clientY;
+    pressEventRef.current = event;
+    pointerMovedRef.current = false;
+    // The event button fills its day column, so its width is the column width.
+    const cell = target.closest('[data-week-cell]') as HTMLElement | null;
+    colWidthRef.current = cell?.getBoundingClientRect().width ?? target.getBoundingClientRect().width;
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = setTimeout(() => {
+      setDraggingId(event.id);
+      setDragOffsetX(0);
+      holdTimerRef.current = null;
+    }, EVENT_DRAG_HOLD_MS);
+  }, []);
+
+  const handlePointerMove = React.useCallback((clientX: number, clientY: number) => {
+    const dx = clientX - startXRef.current;
+    const dy = clientY - startYRef.current;
+    if (!draggingId) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        pointerMovedRef.current = true;
+      }
+      if (Math.abs(dx) > 12 || Math.abs(dy) > 12) {
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
+      }
+      return;
+    }
+    setDragOffsetX(dx);
+    setDragOffsetY(dy);
+  }, [draggingId]);
+
+  const handlePointerEnd = React.useCallback(() => {
+    const dragged = pressEventRef.current;
+    if (!dragged) {
+      clearDragState();
+      return;
+    }
+
+    if (draggingId) {
+      // Horizontal offset → day delta by column width; vertical offset → minute delta.
+      const colWidth = colWidthRef.current > 0 ? colWidthRef.current : EVENT_DRAG_THRESHOLD_PX;
+      const dayDelta = Math.round(dragOffsetX / colWidth);
+      const minuteDelta = Math.round(dragOffsetY / WEEK_MINUTE_THRESHOLD_PX) * EVENT_DRAG_MINUTE_STEP;
+      if (dayDelta !== 0 || minuteDelta !== 0) {
+        const durationMs = new Date(dragged.end).getTime() - new Date(dragged.start).getTime();
+        const nextStart = addDays(new Date(dragged.start), dayDelta);
+        nextStart.setMinutes(nextStart.getMinutes() + minuteDelta);
+        const nextEnd = new Date(nextStart.getTime() + durationMs);
+        const actualDayDelta = Math.round(
+          (startOfDay(nextStart).getTime() - startOfDay(new Date(dragged.start)).getTime()) / 86400000,
+        );
+        onEventMove?.({
+          event: dragged,
+          start: nextStart,
+          end: nextEnd,
+          dayDelta: actualDayDelta,
+          minuteDelta,
+        });
+        onDateChange?.(startOfDay(nextStart));
+      } else {
+        onEventClick?.(dragged);
+      }
+    } else if (!pointerMovedRef.current) {
+      onEventClick?.(dragged);
+    }
+
+    clearDragState();
+  }, [clearDragState, dragOffsetX, dragOffsetY, draggingId, onDateChange, onEventClick, onEventMove]);
 
   return (
     <div className="overflow-y-auto max-h-[500px]">
       {/* Header row */}
-      <div className="grid grid-cols-[48px_repeat(7,1fr)] sticky top-0 bg-bg z-10">
-        <div />
-        {weekDays.map((d, i) => (
-          <div key={i} className="text-center py-2">
-            <div className="text-[11px] tracking-[-0.11px] text-text-muted">{DAY_LABELS[i]}</div>
-            <div className={cn(
-              'w-7 h-7 mx-auto flex items-center justify-center rounded-full text-[13px] tracking-[-0.13px]',
-              isToday(d) && 'bg-accent text-text-highlight',
-            )}>
-              {d.getDate()}
+      <div className="flex sticky top-0 z-10">
+        <div className="w-[48px] shrink-0" />
+        <div className="flex-1 grid grid-cols-7 bg-bg">
+          {weekDays.map((d, i) => (
+            <div key={i} className="flex flex-col items-center justify-center text-center py-2">
+              <div className="text-[11px] tracking-[-0.11px] text-text-muted">{DAY_LABELS[i]}</div>
+              <div className={cn(
+                'w-7 h-7 flex items-center justify-center rounded-full text-[13px] tracking-[-0.13px]',
+                isToday(d) && 'bg-accent text-text-highlight',
+              )}>
+                {d.getDate()}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       {/* Time grid */}
       {HOURS.map((h) => (
@@ -212,14 +335,33 @@ function WeekView({ date, events, onEventClick }: {
               return isSameDay(s, d) && s.getHours() === h;
             });
             return (
-              <div key={di} className="border-l border-border/20 px-0.5 py-0.5">
+              <div key={di} data-week-cell className="border-l border-border/20 px-0.5 py-0.5">
                 {cellEvents.map((e) => (
                   <button
                     key={e.id}
                     type="button"
-                    onClick={() => onEventClick?.(e)}
                     className="w-full text-left rounded-[4px] px-1 py-0.5 text-[11px] tracking-[-0.11px] truncate cursor-pointer"
-                    style={{ backgroundColor: (e.color ?? 'var(--color-accent)') + '20', color: e.color ?? 'var(--color-accent)' }}
+                    style={{
+                      backgroundColor: (e.color ?? 'var(--color-accent)') + '20',
+                      color: e.color ?? 'var(--color-accent)',
+                      transform: draggingId === e.id ? `translate(${dragOffsetX}px, ${dragOffsetY}px)` : undefined,
+                      transition: draggingId === e.id ? 'none' : 'transform 180ms ease, background-color 180ms ease',
+                      opacity: draggingId === e.id ? 0.9 : 1,
+                      boxShadow: draggingId === e.id ? '0 6px 18px rgba(0,0,0,0.12)' : undefined,
+                      touchAction: draggingId === e.id ? 'none' : 'pan-y',
+                      position: draggingId === e.id ? 'relative' : undefined,
+                      zIndex: draggingId === e.id ? 20 : undefined,
+                    }}
+                    onPointerDown={(ev) => handlePointerDown(e, ev.clientX, ev.clientY, ev.currentTarget)}
+                    onPointerMove={(ev) => handlePointerMove(ev.clientX, ev.clientY)}
+                    onPointerUp={handlePointerEnd}
+                    onPointerCancel={clearDragState}
+                    onPointerLeave={() => {
+                      if (!draggingId && holdTimerRef.current) {
+                        clearTimeout(holdTimerRef.current);
+                        holdTimerRef.current = null;
+                      }
+                    }}
                   >
                     {e.title}
                   </button>
@@ -235,12 +377,13 @@ function WeekView({ date, events, onEventClick }: {
 
 // ─── DayView ────────────────────────────────────────────────────
 
-function DayView({ date, events, onEventClick, onEventMove, onDateChange }: {
+function DayView({ date, events, onEventClick, onEventMove, onDateChange, onDragStateChange }: {
   date: Date;
   events: CalendarEvent[];
   onEventClick?: (e: CalendarEvent) => void;
   onEventMove?: (move: CalendarEventMove) => void;
   onDateChange?: (d: Date) => void;
+  onDragStateChange?: (active: boolean) => void;
 }) {
   const dayEvents = events.filter((e) => isSameDay(new Date(e.start), date));
   const now = new Date();
@@ -271,6 +414,17 @@ function DayView({ date, events, onEventClick, onEventMove, onDateChange }: {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!draggingId) return;
+    onDragStateChange?.(true);
+    // While a drag is active, block native scrolling so the vertical drag isn't
+    // hijacked by the page scroll. touch-action stays pan-y otherwise, so a
+    // normal (non-drag) swipe on a block still scrolls.
+    const preventScroll = (ev: TouchEvent) => ev.preventDefault();
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => document.removeEventListener('touchmove', preventScroll);
+  }, [draggingId, onDragStateChange]);
 
   const handlePointerDown = React.useCallback((event: CalendarEvent, clientX: number, clientY: number) => {
     startXRef.current = clientX;
@@ -366,7 +520,7 @@ function DayView({ date, events, onEventClick, onEventMove, onDateChange }: {
                     transition: draggingId === e.id ? 'none' : 'transform 180ms ease, background-color 180ms ease',
                     opacity: draggingId === e.id ? 0.9 : 1,
                     boxShadow: draggingId === e.id ? '0 6px 18px rgba(0,0,0,0.12)' : undefined,
-                    touchAction: 'none',
+                    touchAction: draggingId === e.id ? 'none' : 'pan-y',
                     position: draggingId === e.id ? 'relative' : undefined,
                     zIndex: draggingId === e.id ? 20 : undefined,
                   }}
@@ -406,8 +560,14 @@ interface CalendarProps {
   onDateChange?: (d: Date) => void;
   onEventClick?: (e: CalendarEvent) => void;
   onEventMove?: (move: CalendarEventMove) => void;
+  /** Fired when an event is dropped in a new slot (day view). Alias of onEventMove. */
+  onEventDrop?: (move: CalendarEventMove) => void;
+  /** Enable horizontal swipe on the calendar body to change period (default true). */
+  swipeToNavigate?: boolean;
   className?: string;
 }
+
+const SWIPE_THRESHOLD_PX = 40;
 
 function Calendar({
   events = [],
@@ -417,6 +577,8 @@ function Calendar({
   onDateChange,
   onEventClick,
   onEventMove,
+  onEventDrop,
+  swipeToNavigate = true,
   className,
 }: CalendarProps) {
   const [internalView, setInternalView] = React.useState<CalendarView>('month');
@@ -434,8 +596,50 @@ function Calendar({
     else setDate(addDays(date, dir));
   };
 
+  const handleEventMove = React.useCallback((move: CalendarEventMove) => {
+    onEventMove?.(move);
+    onEventDrop?.(move);
+  }, [onEventMove, onEventDrop]);
+
+  // True for the duration of a gesture in which an event was dragged — used to
+  // suppress the body swipe-to-navigate so dragging a block doesn't also change
+  // the period. Reset on each new touch.
+  const draggedRef = React.useRef(false);
+  const handleDragStateChange = React.useCallback((active: boolean) => {
+    if (active) draggedRef.current = true;
+  }, []);
+
+  const swipeStartXRef = React.useRef<number | null>(null);
+  const swipeStartYRef = React.useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    draggedRef.current = false;
+    swipeStartXRef.current = e.touches[0]?.clientX ?? null;
+    swipeStartYRef.current = e.touches[0]?.clientY ?? null;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (draggedRef.current) {
+      swipeStartXRef.current = null;
+      swipeStartYRef.current = null;
+      return;
+    }
+    if (swipeStartXRef.current === null) return;
+    const startX = swipeStartXRef.current;
+    const startY = swipeStartYRef.current ?? 0;
+    const endX = e.changedTouches[0]?.clientX ?? startX;
+    const endY = e.changedTouches[0]?.clientY ?? startY;
+    swipeStartXRef.current = null;
+    swipeStartYRef.current = null;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    // Horizontal swipe only (ignore vertical scrolling gestures).
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) <= Math.abs(dy)) return;
+    navigate(dx < 0 ? 1 : -1);
+  };
+
+  const bodyProps = swipeToNavigate ? { onTouchStart, onTouchEnd } : {};
+
   return (
-    <div className={cn('', className)}>
+    <div className={cn('select-none', className)}>
       <CalendarHeader
         date={date}
         view={view}
@@ -444,24 +648,36 @@ function Calendar({
         onNext={() => navigate(1)}
         onToday={() => setDate(new Date())}
       />
-      {view === 'month' && (
-        <MonthView
-          date={date}
-          events={events}
-          onDateClick={(d) => { setDate(d); setView('day'); }}
-          onEventClick={onEventClick}
-        />
-      )}
-      {view === 'week' && <WeekView date={date} events={events} onEventClick={onEventClick} />}
-      {view === 'day' && (
-        <DayView
-          date={date}
-          events={events}
-          onEventClick={onEventClick}
-          onEventMove={onEventMove}
-          onDateChange={setDate}
-        />
-      )}
+      <div {...bodyProps}>
+        {view === 'month' && (
+          <MonthView
+            date={date}
+            events={events}
+            onDateClick={(d) => { setDate(d); setView('day'); }}
+            onEventClick={onEventClick}
+          />
+        )}
+        {view === 'week' && (
+          <WeekView
+            date={date}
+            events={events}
+            onEventClick={onEventClick}
+            onEventMove={handleEventMove}
+            onDateChange={setDate}
+            onDragStateChange={handleDragStateChange}
+          />
+        )}
+        {view === 'day' && (
+          <DayView
+            date={date}
+            events={events}
+            onEventClick={onEventClick}
+            onEventMove={handleEventMove}
+            onDateChange={setDate}
+            onDragStateChange={handleDragStateChange}
+          />
+        )}
+      </div>
     </div>
   );
 }
